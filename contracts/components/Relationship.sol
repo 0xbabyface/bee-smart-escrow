@@ -130,7 +130,7 @@ contract Relationship is ERC721Enumerable {
         return ids;
     }
 
-    function getParentBeneficials(address sonWallet) public view returns(address[] memory) {
+    function getParentBeneficials(address sonWallet) external view returns(address[] memory) {
         address[] memory wallets = new address[](MaxParentsLevel);
 
         uint256 relationId = walletsToId[sonWallet];

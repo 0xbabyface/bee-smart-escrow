@@ -3,23 +3,11 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract BeeSmart is AccessControl {
+import "./BeeSmartStorage.sol";
+
+contract BeeSmart is AccessControl, BeeSmartStorage {
     bytes32 public constant AdminRole     = keccak256("BeeSmart.Admin");
     bytes32 public constant CommunityRole = keccak256("BeeSmart.Community");
-
-    enum OrderStatus { UNKNOWN, WAITING, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
-    struct Order {
-        address payToken;
-        uint256 sellAmount;
-        address buyer;
-        address seller;
-        OrderStatus status;
-        address disputeOriginator;
-    }
-
-    mapping(address => bool) public supportedTokens; // supported ERC20.
-
-    mapping(bytes32 => Order) public orders; // total orders, includes pendings and finished orders.
 
     event OrderMade(bytes32 indexed orderHash, address indexed seller, address indexed buyer, address payToken, uint256 amount);
     event OrderCancelled(bytes32 indexed orderHash, address indexed seller, address indexed buyer);
