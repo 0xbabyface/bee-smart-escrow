@@ -27,4 +27,9 @@ contract BeeSmartStorage {
     IRelationship public relathionship;
     IReputation   public reputation;
     IRebate       public rebate;
+
+    address       public communityWallet;
+    uint256       public communityFeeRatio = 0.003E18;  // fee ratio: 0.3%
+
+    uint256       public reputationRatio = 0.0005E18; // reputation points ratio:  tradeAmount * reputationRatio = Points
 }

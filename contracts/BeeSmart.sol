@@ -17,8 +17,47 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event OrderRecalled(bytes32 indexed orderHash, address indexed recalledBy);
     event OrderConfirmed(bytes32 indexed orderHash, uint256 buyerGotAmount, uint256 feeAmount);
 
+    event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
+    event CommunityFeeRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
+    event RoleSet(address indexed admin, bytes32 role, address account, bool toGrant);
+    event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
+
     constructor() {
         _grantRole(AdminRole, msg.sender);
+    }
+    // set community wallet
+    function setCommunityWallet(address w) external onlyRole(AdminRole) {
+        require(w != address(0), "wallet is null");
+        require(w != communityWallet, "same wallet");
+
+        address oldWallet = communityWallet;
+        communityWallet = w;
+        emit CommunityWalletSet(msg.sender, oldWallet, w);
+    }
+    // set community fee ratio
+    function setCommunityFeeRatio(uint256 r) external onlyRole(AdminRole) {
+        require(0 <= r && r < 1E18, "fee ratio invalid");
+        uint256 oldRatio = communityFeeRatio;
+        communityFeeRatio = r;
+        emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
+    }
+    // set role
+    function setRole(bytes32 role, address account, bool toGrant) external onlyRole(AdminRole) {
+        require(role == AdminRole || role == CommunityRole, "unknown role");
+        require(account != address(0), "grant to null address");
+
+        if (toGrant) _grantRole(role, account);
+        else _revokeRole(role, account);
+
+        emit RoleSet(msg.sender, role, account, toGrant);
+    }
+
+    // set reputation ratio
+    function setReputationRatio(uint256 r) external onlyRole(AdminRole) {
+         require(0 <= r && r < 1E18, "fee ratio invalid");
+        uint256 oldRatio = reputationRatio;
+        reputationRatio = r;
+        emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
     }
 
     // seller makes a order
