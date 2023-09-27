@@ -75,7 +75,7 @@ contract Relationship is ERC721Enumerable {
     function bind(uint256 parendId, uint256 sonId) external {
         require(ownerOf(parendId) != address(0), "parent id not exist");
         if (sonId == 0) {
-            require(balanceOf(msg.sender) == 0, "sender had BSP");
+            require(balanceOf(msg.sender) == 0, "sender had BSR");
             sonId = nextId();
             // CAUTION: if msg.sender is a contract, it must make sure who can retrieve tokens from it.
             beneficialWallets[sonId] = msg.sender;
