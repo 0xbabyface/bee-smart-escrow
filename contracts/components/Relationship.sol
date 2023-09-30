@@ -12,8 +12,6 @@ contract Relationship is ERC721Enumerable {
     uint256 public constant RootId = 100000000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
-    uint256 public constant MaxParentsLevel = 5;
-
     // idRelations about relationId, its parent id stored at index 0.
     // RelationId => [ReputatonId]
     mapping(uint256 => EnumerableSet.UintSet) idRelations;
@@ -114,13 +112,13 @@ contract Relationship is ERC721Enumerable {
     }
 
     //
-    function getParentRelationId(address wallet) external view returns(uint256[] memory) {
-        uint256[] memory ids = new uint256[](MaxParentsLevel);
+    function getParentRelationId(address wallet, uint256 level) external view returns(uint256[] memory) {
+        uint256[] memory ids = new uint256[](level);
         uint256 relationId = walletsToId[wallet];
         if (relationId == 0 || relationId == RootId) return ids;
 
         uint256 parendId;
-        for (uint i = 0; i < MaxParentsLevel; ++i) {
+        for (uint i = 0; i < level; ++i) {
             parendId = idRelations[relationId].at(0);
             if (parendId == RootId) break;
             ids[i] = parendId;
@@ -130,14 +128,14 @@ contract Relationship is ERC721Enumerable {
         return ids;
     }
 
-    function getParentBeneficials(address sonWallet) external view returns(address[] memory) {
-        address[] memory wallets = new address[](MaxParentsLevel);
+    function getParentBeneficials(address sonWallet, uint256 level) external view returns(address[] memory) {
+        address[] memory wallets = new address[](level);
 
         uint256 relationId = walletsToId[sonWallet];
         if (relationId == 0 || relationId == RootId) return wallets;
 
         uint256 parendId;
-        for (uint i = 0; i < MaxParentsLevel; ++i) {
+        for (uint i = 0; i < level; ++i) {
             parendId = idRelations[relationId].at(0);
             if (parendId == RootId) break;
             wallets[i] = beneficialWallets[parendId];

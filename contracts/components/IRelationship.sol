@@ -9,7 +9,7 @@ interface IRelationship {
 
     function getWallets(uint256 relationId) external view returns(address[] memory) ;
 
-    function getParentRelationId(address wallet) external view returns(uint256[] memory);
+    function getParentRelationId(address wallet, uint256 level) external view returns(uint256[] memory);
 
-    function getParentBeneficials(address sonWallet) external view returns(address[] memory);
+    function getParentBeneficials(address sonWallet, uint256 level) external view returns(address[] memory);
 }

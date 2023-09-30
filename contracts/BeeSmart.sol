@@ -37,7 +37,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
     // set community fee ratio
     function setCommunityFeeRatio(uint256 r) external onlyRole(AdminRole) {
-        require(0 <= r && r < 1E18, "fee ratio invalid");
+        require(0 <= r && r <= 1E18, "fee ratio invalid");
         uint256 oldRatio = communityFeeRatio;
         communityFeeRatio = r;
         emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
@@ -55,14 +55,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     // set reputation ratio
     function setReputationRatio(uint256 r) external onlyRole(AdminRole) {
-        require(0 <= r && r < 1E18, "fee ratio invalid");
+        require(0 <= r && r <= 1E18, "fee ratio invalid");
         uint256 oldRatio = reputationRatio;
         reputationRatio = r;
         emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
     }
     // set rebate fee ratio
     function setRebateRatio(uint256 r) external onlyRole(AdminRole) {
-        require(0 <= r && r < 1E18, "fee ratio invalid");
+        require(0 <= r && r <= 1E18, "fee ratio invalid");
         uint256 oldRatio = rebateRatio;
         rebateRatio = r;
         emit RebateRatioSet(msg.sender, oldRatio, r);
@@ -75,6 +75,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(orders[orderHash].payToken == address(0), "order existed");
 
         orders[orderHash] = Order(payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp), address(0));
+        ordersOfUser[msg.sender].push(orderHash);
 
         IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount);
 
@@ -113,7 +114,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
         uint256 buyerGotAmount = order.sellAmount - communityFee;
 
-        uint256[] memory parentIds = relathionship.getParentRelationId(order.buyer);
+        uint256[] memory parentIds = relathionship.getParentRelationId(order.buyer, RebateLevels);
         if (parentIds.length > 0) {
             uint256 rebateAmount = communityFee * rebateRatio / RatioPrecision;  // 10% for rebates;
             uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
@@ -140,7 +141,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // buyer or seller wants to dispute
     function dispute(bytes32 orderHash) external {
         Order storage order = orders[orderHash];
-        require(order.statusTimestamp + statusDurationSec <= block.timestamp, "in waiting time");
+        require(order.statusTimestamp + orderStatusDurationSec <= block.timestamp, "in waiting time");
         require(order.status == OrderStatus.WAITING, "order status mismatch");
         require(order.buyer == msg.sender || order.seller == msg.sender, "only buyer or seller allowed");
 

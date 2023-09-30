@@ -14,8 +14,8 @@ contract Rebate {
                 rebates[i] = totalRebate;
                 break;
             } else {
-                rebates[i] = totalRebate * 0.9E18 / 1E18;
-                totalRebate = totalRebate * 0.1E18 / 1E18;
+                rebates[i] = totalRebate * 0.9E18 / 1E18;   // 90% for current argent
+                totalRebate = totalRebate * 0.1E18 / 1E18;  // 10% for upper argent
             }
         }
 
