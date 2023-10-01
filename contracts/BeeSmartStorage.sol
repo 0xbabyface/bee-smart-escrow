@@ -16,8 +16,11 @@ contract BeeSmartStorage {
         address buyer;
         address seller;
         OrderStatus status;
-        uint64  statusTimestamp;
-        address disputeOriginator;
+        uint64  updatedAt;
+    }
+
+    struct DisputeInfo {
+        address originator;
     }
 
     uint256 public constant RatioPrecision = 1E18;
@@ -26,14 +29,20 @@ contract BeeSmartStorage {
     mapping(address => bool) public supportedTokens; // supported ERC20.
 
     mapping(bytes32 => Order) public orders; // total orders, includes pendings and finished orders.
-    mapping(address => bytes32[]) public ordersOfUser;
+    // orderHash => DisputeInfo
+    mapping(bytes32 => DisputeInfo) public disputeOrder;
+
+    mapping(address => bytes32[]) public sellOrdersOfUser;
+    mapping(address => bytes32[]) public buyOrdersOfUser;
 
     // relationId => erc20 => rebate
     mapping(uint256 => mapping (address => uint256)) public rebateRewards;
+    // relationId => airdrop points
+    mapping(uint256 => uint256) public airdropPoints;
 
     uint64        public orderStatusDurationSec = 30 * 60; // 30 minutes
 
-    IRelationship public relathionship;
+    IRelationship public relationship;
     IReputation   public reputation;
     IRebate       public rebate;
 

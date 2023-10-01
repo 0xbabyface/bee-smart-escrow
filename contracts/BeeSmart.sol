@@ -74,16 +74,21 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(sellAmount > 0, "pay amount zero");
         require(orders[orderHash].payToken == address(0), "order existed");
 
-        orders[orderHash] = Order(payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp), address(0));
-        ordersOfUser[msg.sender].push(orderHash);
+        uint256 buyerId = relationship.getRelationId(buyer);
+        uint256 sellerId = relationship.getRelationId(msg.sender);
+        require(buyerId != sellerId, "can not sell to self");
+
+        orders[orderHash] = Order(payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
+        sellOrdersOfUser[msg.sender].push(orderHash);
+        buyOrdersOfUser[buyer].push(orderHash);
 
         IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount);
 
         emit OrderMade(orderHash, msg.sender, buyer, payToken, sellAmount);
     }
 
-    // buyer want to reduce amount of order
-    function reduceOrder(bytes32 orderHash, uint256 amount) external {
+    // buyer want to adjust amount of order
+    function adjustOrder(bytes32 orderHash, uint256 amount) external {
         Order storage order = orders[orderHash];
 
         require(order.status == OrderStatus.WAITING, "order status mismatch");
@@ -98,6 +103,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             emit OrderReduced(orderHash, order.seller, order.buyer, amount);
         }
 
+        order.updatedAt = uint64(block.timestamp);
+
         IERC20(order.payToken).transfer(order.seller, amount);
     }
 
@@ -109,12 +116,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(order.seller == msg.sender, "only seller allowed");
 
         order.status = OrderStatus.CONFIRMED;
+        order.updatedAt = uint64(block.timestamp);
 
         // S1: calculate fees for community & upper parents.
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
         uint256 buyerGotAmount = order.sellAmount - communityFee;
 
-        uint256[] memory parentIds = relathionship.getParentRelationId(order.buyer, RebateLevels);
+        uint256[] memory parentIds = relationship.getParentRelationId(order.buyer, RebateLevels);
         if (parentIds.length > 0) {
             uint256 rebateAmount = communityFee * rebateRatio / RatioPrecision;  // 10% for rebates;
             uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
@@ -127,9 +135,15 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
 
         // S2: calculate reputation points for both seller & buyer.
+        uint256 sellerRelationId = relationship.getRelationId(order.seller);
+        uint256 buyerRelationId = relationship.getRelationId(order.buyer);
         uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
-        reputation.grant(relathionship.getRelationId(order.seller), points);
-        reputation.grant(relathionship.getRelationId(order.buyer), points);
+
+        reputation.grant(sellerRelationId, points);
+        reputation.grant(buyerRelationId, points);
+
+        airdropPoints[sellerRelationId] += 1;
+        airdropPoints[buyerRelationId] += 1;
 
         // S3: transfer token to buyer & community
         IERC20(order.payToken).transfer(order.buyer, buyerGotAmount);
@@ -141,13 +155,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // buyer or seller wants to dispute
     function dispute(bytes32 orderHash) external {
         Order storage order = orders[orderHash];
-        require(order.statusTimestamp + orderStatusDurationSec <= block.timestamp, "in waiting time");
+        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "in waiting time");
         require(order.status == OrderStatus.WAITING, "order status mismatch");
         require(order.buyer == msg.sender || order.seller == msg.sender, "only buyer or seller allowed");
 
         order.status = OrderStatus.DISPUTING;
-        order.statusTimestamp = uint64(block.timestamp);
-        order.disputeOriginator = msg.sender;
+        order.updatedAt = uint64(block.timestamp);
+
+        disputeOrder[orderHash] = DisputeInfo(msg.sender);
 
         emit OrderDisputed(orderHash, msg.sender);
     }
@@ -157,10 +172,12 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         Order storage order = orders[orderHash];
 
         require(order.status == OrderStatus.DISPUTING, "order status mismatch");
-        require(order.disputeOriginator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
+        require(disputeOrder[orderHash].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
 
         order.status = OrderStatus.WAITING;
-        order.statusTimestamp = uint64(block.timestamp);
+        order.updatedAt = uint64(block.timestamp);
+
+        delete disputeOrder[orderHash];
 
         emit OrderDisputeRecalled(orderHash, msg.sender);
     }
@@ -172,17 +189,29 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(order.status == OrderStatus.DISPUTING, "order status mismatch");
 
         order.status = OrderStatus.RECALLED;
+        order.updatedAt = uint64(block.timestamp);
+
+        delete disputeOrder[orderHash];
 
         // minus the reputation points from order.disputeOriginator
         uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
         if (winner == order.seller) {
-            reputation.takeback(relathionship.getRelationId(order.buyer), points);
+            reputation.takeback(relationship.getRelationId(order.buyer), points);
         } else if (winner == order.buyer) {
-            reputation.takeback(relathionship.getRelationId(order.seller), points);
+            reputation.takeback(relationship.getRelationId(order.seller), points);
         }
 
         IERC20(order.payToken).transfer(order.seller, order.sellAmount);
 
         emit OrderRecalled(orderHash, msg.sender);
+    }
+
+    //
+    function getLengthOfSellOrders(address wallet) public view returns(uint256) {
+        return sellOrdersOfUser[wallet].length;
+    }
+
+    function getLengthOfBuyOrders(address wallet) public view returns(uint256) {
+        return buyOrdersOfUser[wallet].length;
     }
 }
