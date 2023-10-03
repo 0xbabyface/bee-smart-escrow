@@ -6,12 +6,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./BeeSmartStorage.sol";
 
 contract BeeSmart is AccessControl, BeeSmartStorage {
+    using EnumerableSet for EnumerableSet.AddressSet;
+
     bytes32 public constant AdminRole     = keccak256("BeeSmart.Admin");
     bytes32 public constant CommunityRole = keccak256("BeeSmart.Community");
 
     event OrderMade(bytes32 indexed orderHash, address indexed seller, address indexed buyer, address payToken, uint256 amount);
     event OrderCancelled(bytes32 indexed orderHash, address indexed seller, address indexed buyer);
-    event OrderReduced(bytes32 indexed orderHash, address indexed seller, address indexed buyer, uint256 reduceAmount);
+    event OrderAdjusted(bytes32 indexed orderHash, address indexed seller, address indexed buyer, uint256 preAmount, uint256 nowAmount);
     event OrderDisputed(bytes32 indexed orderHash, address indexed firedBy);
     event OrderDisputeRecalled(bytes32 indexed orderHash, address indexed recalledBy);
     event OrderRecalled(bytes32 indexed orderHash, address indexed recalledBy);
@@ -67,10 +69,24 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rebateRatio = r;
         emit RebateRatioSet(msg.sender, oldRatio, r);
     }
+    // add tradable tokens
+    function addSupportTokens(address[] memory tokens) external onlyRole(AdminRole) {
+        for (uint i = 0; i < tokens.length; ++i) {
+            if (supportedTokens.contains(tokens[i])) continue;
+            else supportedTokens.add(tokens[i]);
+        }
+    }
+
+    // remove tradable tokens
+    function removeSupportTokens(address[] memory tokens) external onlyRole(AdminRole) {
+        for (uint i = 0; i < tokens.length; ++i) {
+            if (supportedTokens.contains(tokens[i])) supportedTokens.remove(tokens[i]);
+        }
+    }
 
     // seller makes a order
     function makeOrder(bytes32 orderHash, address payToken, uint256 sellAmount, address buyer) external {
-        require(supportedTokens[payToken], "token not support");
+        require(supportedTokens.contains(payToken), "token not support");
         require(sellAmount > 0, "pay amount zero");
         require(orders[orderHash].payToken == address(0), "order existed");
 
@@ -91,7 +107,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function adjustOrder(bytes32 orderHash, uint256 amount) external {
         Order storage order = orders[orderHash];
 
-        require(order.status == OrderStatus.WAITING, "order status mismatch");
+        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender, "only buyer allowed");
         require(order.sellAmount >= amount, "amount overflow");
 
@@ -99,8 +115,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             order.status = OrderStatus.CANCELLED;
             emit OrderCancelled(orderHash, order.seller, order.buyer);
         } else {
+            uint256 preAmount = order.sellAmount;
             order.sellAmount -= amount;
-            emit OrderReduced(orderHash, order.seller, order.buyer, amount);
+            order.status = OrderStatus.ADJUSTED;
+
+            adjustedOrder[orderHash] = AdjustInfo(preAmount, order.sellAmount);
+
+            emit OrderAdjusted(orderHash, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
         order.updatedAt = uint64(block.timestamp);
@@ -112,7 +133,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function confirmOrder(bytes32 orderHash) external {
         Order storage order = orders[orderHash];
 
-        require(order.status == OrderStatus.WAITING, "order status mismatch");
+        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.seller == msg.sender, "only seller allowed");
 
         order.status = OrderStatus.CONFIRMED;
@@ -156,13 +177,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function dispute(bytes32 orderHash) external {
         Order storage order = orders[orderHash];
         require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "in waiting time");
-        require(order.status == OrderStatus.WAITING, "order status mismatch");
+        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender || order.seller == msg.sender, "only buyer or seller allowed");
 
         order.status = OrderStatus.DISPUTING;
         order.updatedAt = uint64(block.timestamp);
 
-        disputeOrder[orderHash] = DisputeInfo(msg.sender);
+        disputedOrder[orderHash] = DisputeInfo(msg.sender);
 
         emit OrderDisputed(orderHash, msg.sender);
     }
@@ -172,12 +193,12 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         Order storage order = orders[orderHash];
 
         require(order.status == OrderStatus.DISPUTING, "order status mismatch");
-        require(disputeOrder[orderHash].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
+        require(disputedOrder[orderHash].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
 
         order.status = OrderStatus.WAITING;
         order.updatedAt = uint64(block.timestamp);
 
-        delete disputeOrder[orderHash];
+        delete disputedOrder[orderHash];
 
         emit OrderDisputeRecalled(orderHash, msg.sender);
     }
@@ -191,7 +212,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         order.status = OrderStatus.RECALLED;
         order.updatedAt = uint64(block.timestamp);
 
-        delete disputeOrder[orderHash];
+        delete disputedOrder[orderHash];
 
         // minus the reputation points from order.disputeOriginator
         uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
@@ -213,5 +234,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     function getLengthOfBuyOrders(address wallet) public view returns(uint256) {
         return buyOrdersOfUser[wallet].length;
+    }
+
+    function getSupportTokens() public view returns(address[] memory) {
+        uint length = supportedTokens.length();
+        address[] memory tokens = new address[](length);
+        for (uint i = 0; i < length; ++i) {
+            tokens[i] = supportedTokens.at(i);
+        }
+        return tokens;
     }
 }

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-enum OrderStatus { UNKNOWN, WAITING, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
+import "./components/IRelationship.sol";
+import "./components/IReputation.sol";
+
+enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
 struct Order {
     address payToken;
     uint256 sellAmount;
@@ -17,6 +20,11 @@ interface IBeeSmart {
     function sellOrdersOfUser(address, uint256) external view returns(bytes32);
     function buyOrdersOfUser(address, uint256) external view returns(bytes32);
     function orders(bytes32) external view returns(Order memory);
+    function relationship() external view returns(IRelationship);
+    function reputation() external view returns(IReputation);
+    function airdropPoints(uint256) external view returns(uint256);
+    function getSupportTokens() external view returns(address[] memory);
+    function rebateRewards(uint256,address) external view returns(uint256);
 }
 
 contract BeeSmartLens {
@@ -73,5 +81,39 @@ contract BeeSmartLens {
         }
 
         return (result, length);
+    }
+
+    struct RebateInfo {
+        address token;  // trade token
+        uint256 rebate; // rebates
+    }
+
+    struct UserInfo {
+        uint256 relationId;
+        uint256 airdropCount;
+        uint256 reputationCount;
+        uint256 totalTrades;
+        RebateInfo[] rebates;
+    }
+
+    function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
+        IRelationship relationship = smart.relationship();
+        IReputation reputation = smart.reputation();
+
+        uint256 relationId = relationship.getRelationId(wallet);
+        address[] memory tradableTokens = smart.getSupportTokens();
+
+        UserInfo memory info = UserInfo({
+            relationId: relationId,
+            airdropCount: smart.airdropPoints(relationId),
+            reputationCount: reputation.reputationPoints(address(smart), relationId),
+            totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),
+            rebates: new RebateInfo[](tradableTokens.length)
+        });
+        for (uint i = 0; i < tradableTokens.length; ++i) {
+            info.rebates[i] = RebateInfo(tradableTokens[i], smart.rebateRewards(relationId, tradableTokens[i]));
+        }
+
+        return info;
     }
 }

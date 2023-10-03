@@ -9,7 +9,7 @@ import "./components/IRebate.sol";
 
 contract BeeSmartStorage {
 
-    enum OrderStatus { UNKNOWN, WAITING, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
+    enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
     struct Order {
         address payToken;
         uint256 sellAmount;
@@ -23,14 +23,21 @@ contract BeeSmartStorage {
         address originator;
     }
 
+    struct AdjustInfo {
+        uint256 preAmount;
+        uint256 curAmount;
+    }
+
     uint256 public constant RatioPrecision = 1E18;
     uint256 public constant RebateLevels = 10;
 
-    mapping(address => bool) public supportedTokens; // supported ERC20.
+    EnumerableSet.AddressSet supportedTokens; // supported ERC20.
 
     mapping(bytes32 => Order) public orders; // total orders, includes pendings and finished orders.
     // orderHash => DisputeInfo
-    mapping(bytes32 => DisputeInfo) public disputeOrder;
+    mapping(bytes32 => DisputeInfo) public disputedOrder;
+    // orderHash => AdjustInfo
+    mapping(bytes32 => AdjustInfo) public adjustedOrder;
 
     mapping(address => bytes32[]) public sellOrdersOfUser;
     mapping(address => bytes32[]) public buyOrdersOfUser;
