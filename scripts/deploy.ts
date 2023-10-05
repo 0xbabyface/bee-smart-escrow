@@ -1,22 +1,50 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const unlockTime = currentTimestampInSeconds + 60;
 
-  const lockedAmount = ethers.parseEther("0.001");
+  const Reputation = await ethers.deployContract("Reputation");
+  await Reputation.waitForDeployment();
 
-  const lock = await ethers.deployContract("Lock", [unlockTime], {
-    value: lockedAmount,
-  });
+  const Relationship = await ethers.deployContract("Relationship");
+  await Relationship.waitForDeployment();
 
-  await lock.waitForDeployment();
+  const Rebate = await ethers.deployContract("Rebate");
+  await Rebate.waitForDeployment();
 
-  console.log(
-    `Lock with ${ethers.formatEther(
-      lockedAmount
-    )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
-  );
+  const Candy = await ethers.deployContract("Candy");
+  await Candy.waitForDeployment();
+
+  const BeeSmart = await ethers.deployContract("BeeSmart");
+  await BeeSmart.waitForDeployment();
+
+  const [owner] = await ethers.getSigners();
+  const initializeData = BeeSmart.interface.encodeFunctionData("initialize", [[owner.address], []])
+
+  const BeeSmartProxy = await ethers.deployContract("BeeSmartProxy", [BeeSmart.target, initializeData, owner.address]);
+  await BeeSmartProxy.waitForDeployment();
+
+  const BeeSmartLens = await ethers.deployContract("BeeSmartLens");
+  await BeeSmartLens.waitForDeployment();
+
+  // to initialize system
+  const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);
+  await smart.setRelationship(Relationship.target);
+  await smart.setReputation(Reputation.target);
+  await smart.setRebate(Rebate.target);
+
+  await Candy.setMinter(BeeSmartProxy.target, true);
+
+  console.log(`
+  Bee Smart System Deployed:
+    Candy:          ${Candy.target}
+    Reputation:     ${Reputation.target}
+    Relationship:   ${Relationship.target}
+    Rebate:         ${Rebate.target}
+    BeeSmart:       ${BeeSmart.target}
+    BeeSmartProxy:  ${BeeSmartProxy.target}
+    BeeSmartLens:   ${BeeSmartLens.target}
+  `)
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

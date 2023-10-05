@@ -7,8 +7,11 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 contract BeeSmartProxy is ERC1967Proxy, Ownable {
     constructor(
         address _logic,
-        bytes memory _data
-    ) ERC1967Proxy(_logic, _data) {}
+        bytes memory _data,
+        address owner
+    ) ERC1967Proxy(_logic, _data) {
+        _transferOwnership(owner);
+    }
 
     function setImplementation(
         address _newLogic,

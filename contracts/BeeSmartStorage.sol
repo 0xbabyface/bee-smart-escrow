@@ -47,6 +47,7 @@ contract BeeSmartStorage {
     // relationId => airdrop points
     mapping(uint256 => uint256) public airdropPoints;
 
+    uint8         public initialized;
     uint64        public orderStatusDurationSec = 30 * 60; // 30 minutes
 
     IRelationship public relationship;

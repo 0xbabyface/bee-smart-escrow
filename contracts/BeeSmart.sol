@@ -25,8 +25,21 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
     event RebateRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
 
-    constructor() {
-        _grantRole(AdminRole, msg.sender);
+    event RelationshipSet(address indexed relationship);
+    event ReputationSet(address indexed reputation);
+    event RebateSet(address indexed rebate);
+
+    function initialize(address[] memory admins, address[] memory communities) external {
+        require(initialized == 0, "only once");
+        initialized = 1;
+
+        for (uint i = 0; i < admins.length; ++i) {
+            _grantRole(AdminRole, admins[i]);
+        }
+
+        for (uint i = 0; i < communities.length; ++i) {
+            _grantRole(AdminRole, communities[i]);
+        }
     }
     // set community wallet
     function setCommunityWallet(address w) external onlyRole(AdminRole) {
@@ -82,6 +95,24 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         for (uint i = 0; i < tokens.length; ++i) {
             if (supportedTokens.contains(tokens[i])) supportedTokens.remove(tokens[i]);
         }
+    }
+
+    function setRelationship(IRelationship rs) external onlyRole(AdminRole) {
+        require(address(rs).code.length > 0, "invalid relaionship contract");
+        relationship = rs;
+        emit RelationshipSet(address(rs));
+    }
+
+    function setReputation(IReputation rep) external onlyRole(AdminRole) {
+        require(address(rep).code.length > 0, "invalid reputaion contract");
+        reputation = rep;
+        emit ReputationSet(address(rep));
+    }
+
+    function setRebate(IRebate reb) external onlyRole(AdminRole) {
+        require(address(reb).code.length > 0, "invalid rebate contract");
+        rebate = reb;
+        emit RebateSet(address(reb));
     }
 
     // seller makes a order
