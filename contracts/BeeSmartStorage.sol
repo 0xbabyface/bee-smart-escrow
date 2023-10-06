@@ -42,7 +42,7 @@ contract BeeSmartStorage {
     mapping(address => bytes32[]) public sellOrdersOfUser;
     mapping(address => bytes32[]) public buyOrdersOfUser;
 
-    // relationId => erc20 => rebate
+    // relationId => erc20 => rebate (for CANDY)
     mapping(uint256 => mapping (address => uint256)) public rebateRewards;
     // relationId => airdrop points
     mapping(uint256 => uint256) public airdropPoints;
@@ -57,8 +57,9 @@ contract BeeSmartStorage {
     address       public communityWallet;
 
     uint256       public communityFeeRatio = 0.03E18;  // fee ratio: 0.3%
-    uint256       public chargesBaredBuyerRatio = 0.03E18;  // 3% buyer fee ratio
-    uint256       public chargesBaredSellerRatio = 0.03E18;  // 3% buyer fee ratio
+    uint256       public chargesBaredBuyerRatio = 1E18;  // 100% buyer fee ratio
+    uint256       public chargesBaredSellerRatio = 0;  // 0% seller fee ratio
+
     uint256       public rewardForBuyerRatio = 0.03E18;  // reward for buyer
     uint256       public rewardForSellerRatio = 0.03E18;  // reward for seller
 

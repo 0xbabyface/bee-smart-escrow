@@ -20,7 +20,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event OrderConfirmed(bytes32 indexed orderHash, uint256 buyerGotAmount, uint256 feeAmount);
 
     event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
-    event CommunityFeeRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
+    event CommunityFeeRatioSet(address indexed admin, uint256 ratio, uint256 buyerCharged, uint256 sellerCharged);
     event RoleSet(address indexed admin, bytes32 role, address account, bool toGrant);
     event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
     event RebateRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
@@ -28,6 +28,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event RelationshipSet(address indexed relationship);
     event ReputationSet(address indexed reputation);
     event RebateSet(address indexed rebate);
+    event RewardFeeRatioSet(uint256 rewardForBuyer, uint256 rewardForSeller);
 
     function initialize(address[] memory admins, address[] memory communities) external {
         require(initialized == 0, "only once");
@@ -51,11 +52,25 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
     // set community fee ratio
-    function setCommunityFeeRatio(uint256 r) external onlyRole(AdminRole) {
+    function setCommunityFeeRatio(uint256 r, uint256 buyerChargedRatio, uint256 sellerChargedRatio) external onlyRole(AdminRole) {
         require(0 <= r && r <= 1E18, "fee ratio invalid");
-        uint256 oldRatio = communityFeeRatio;
+        require(buyerChargedRatio + sellerChargedRatio == RatioPrecision, "buyer and seller charged not percent 100");
+
         communityFeeRatio = r;
-        emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
+        chargesBaredBuyerRatio = buyerChargedRatio;
+        chargesBaredSellerRatio = sellerChargedRatio;
+
+        emit CommunityFeeRatioSet(msg.sender, r, buyerChargedRatio, sellerChargedRatio);
+    }
+
+    // set reward fee ratio for buyer & seller
+    function setRewardFeeRatio(uint256 rewardForBuyer, uint256 rewardForSeller) external onlyRole(AdminRole) {
+        require(rewardForBuyer + rewardForSeller == RatioPrecision, "total reatio is not percent 100");
+
+        rewardForBuyerRatio = rewardForBuyer;
+        rewardForSellerRatio = rewardForSeller;
+
+        emit RewardFeeRatioSet(rewardForBuyer, rewardForSeller);
     }
     // set role
     function setRole(bytes32 role, address account, bool toGrant) external onlyRole(AdminRole) {
@@ -73,9 +88,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(0 <= r && r <= 1E18, "fee ratio invalid");
         uint256 oldRatio = reputationRatio;
         reputationRatio = r;
-        emit CommunityFeeRatioSet(msg.sender, oldRatio, r);
+        emit ReputationRatioSet(msg.sender, oldRatio, r);
     }
-    // set rebate fee ratio
+    // set rebate fee ratio for upper argents
     function setRebateRatio(uint256 r) external onlyRole(AdminRole) {
         require(0 <= r && r <= 1E18, "fee ratio invalid");
         uint256 oldRatio = rebateRatio;
@@ -129,7 +144,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         sellOrdersOfUser[msg.sender].push(orderHash);
         buyOrdersOfUser[buyer].push(orderHash);
 
-        IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount);
+        uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+
+        IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
         emit OrderMade(orderHash, msg.sender, buyer, payToken, sellAmount);
     }
@@ -157,7 +174,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         order.updatedAt = uint64(block.timestamp);
 
-        IERC20(order.payToken).transfer(order.seller, amount);
+        // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
+        uint256 sellerFee = amount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+
+        IERC20(order.payToken).transfer(order.seller, amount + sellerFee);
     }
 
     // seller confirmed and want to finish an order.
@@ -172,7 +192,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         // S1: calculate fees for community & upper parents.
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
-        uint256 buyerGotAmount = order.sellAmount - communityFee;
+        // uint256 sellerFee    = communityFee * chargesBaredSellerRatio / RatioPrecision;
+        uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
+
+        uint256 buyerGotAmount = order.sellAmount - buyerFee;
 
         uint256[] memory parentIds = relationship.getParentRelationId(order.buyer, RebateLevels);
         if (parentIds.length > 0) {
@@ -253,7 +276,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             reputation.takeback(relationship.getRelationId(order.seller), points);
         }
 
-        IERC20(order.payToken).transfer(order.seller, order.sellAmount);
+        // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
+         uint256 sellerFee = order.sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+        IERC20(order.payToken).transfer(order.seller, order.sellAmount + sellerFee);
 
         emit OrderRecalled(orderHash, msg.sender);
     }
