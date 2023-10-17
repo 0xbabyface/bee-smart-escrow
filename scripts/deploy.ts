@@ -34,6 +34,12 @@ async function main() {
 
   await Candy.setMinter(BeeSmartProxy.target, true);
 
+  const USDT = await ethers.deployContract("TestUSDT");
+  await USDT.waitForDeployment();
+
+  const USDC = await ethers.deployContract("TestUSDC");
+  await USDC.waitForDeployment();
+
   console.log(`
   Bee Smart System Deployed:
     Candy:          ${Candy.target}
@@ -43,6 +49,8 @@ async function main() {
     BeeSmart:       ${BeeSmart.target}
     BeeSmartProxy:  ${BeeSmartProxy.target}
     BeeSmartLens:   ${BeeSmartLens.target}
+    TestUSDT:       ${USDT.target}
+    TestUSDC:       ${USDC.target}
   `)
 
 }
