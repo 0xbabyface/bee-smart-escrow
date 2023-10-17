@@ -197,7 +197,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         uint256 buyerGotAmount = order.sellAmount - buyerFee;
 
-        uint256[] memory parentIds = relationship.getParentRelationId(order.buyer, RebateLevels);
+        uint256[] memory parentIds = relationship.getParentRelationId(order.seller, RebateLevels);
         if (parentIds.length > 0) {
             uint256 rebateAmount = communityFee * rebateRatio / RatioPrecision;  // 10% for rebates;
             uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
