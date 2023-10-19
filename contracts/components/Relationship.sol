@@ -9,7 +9,7 @@ contract Relationship is ERC721Enumerable {
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint256 public constant RootId = 100000000000;
+    uint256 public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
     // idRelations about relationId, its parent id stored at index 0.

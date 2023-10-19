@@ -39,7 +39,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
 
         for (uint i = 0; i < communities.length; ++i) {
-            _grantRole(AdminRole, communities[i]);
+            _grantRole(CommunityRole, communities[i]);
         }
     }
     // set community wallet
@@ -140,7 +140,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint256 sellerId = relationship.getRelationId(msg.sender);
         require(buyerId != sellerId, "can not sell to self");
 
-        orders[orderHash] = Order(payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
+        orders[orderHash] = Order(orderHash, payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
         sellOrdersOfUser[msg.sender].push(orderHash);
         buyOrdersOfUser[buyer].push(orderHash);
 
@@ -203,7 +203,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
             for (uint256 i = 0; i < parentIds.length; ++i) {
                 if (parentIds[i] == 0) break;
-                rebateRewards[parentIds[i]][order.payToken] += parentRebates[i];
+                rebateRewards[parentIds[i]] += parentRebates[i];
             }
 
             communityFee -= rebateAmount;

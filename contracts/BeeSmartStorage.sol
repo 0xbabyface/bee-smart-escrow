@@ -11,6 +11,7 @@ contract BeeSmartStorage {
 
     enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
     struct Order {
+        bytes32 orderHash;
         address payToken;
         uint256 sellAmount;
         address buyer;
@@ -42,8 +43,8 @@ contract BeeSmartStorage {
     mapping(address => bytes32[]) public sellOrdersOfUser;
     mapping(address => bytes32[]) public buyOrdersOfUser;
 
-    // relationId => erc20 => rebate (for CANDY)
-    mapping(uint256 => mapping (address => uint256)) public rebateRewards;
+    // relationId => rebate (for CANDY)
+    mapping(uint256 => uint256) public rebateRewards;
     // relationId => airdrop points
     mapping(uint256 => uint256) public airdropPoints;
 

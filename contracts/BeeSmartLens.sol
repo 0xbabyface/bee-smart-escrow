@@ -7,6 +7,7 @@ import "./components/IReputation.sol";
 
 enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
 struct Order {
+    bytes32 orderHash;
     address payToken;
     uint256 sellAmount;
     address buyer;
@@ -25,18 +26,18 @@ interface IBeeSmart {
     function reputation() external view returns(IReputation);
     function airdropPoints(uint256) external view returns(uint256);
     function getSupportTokens() external view returns(address[] memory);
-    function rebateRewards(uint256,address) external view returns(uint256);
+    function rebateRewards(uint256) external view returns(uint256);
 }
 
 contract BeeSmartLens {
 
-    function getTotalSellOrders(IBeeSmart smart, address wallet, uint256 lastN) public view returns(Order[] memory) {
+    function getTotalSellOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfSellOrders(wallet);
-        uint256 count = length > lastN ? lastN : length;
+        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex - 1);
         Order[] memory orders = new Order[](count);
 
         uint256 j = 0;
-        for (uint i = length - 1; i >= count; --i) {
+        for (uint i = startIndex; i < startIndex + itemCount; ++i) {
             bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i);
             orders[j]  = smart.orders(orderHash);
             ++j;
@@ -45,13 +46,13 @@ contract BeeSmartLens {
         return orders;
     }
 
-    function getTotalBuyOrders(IBeeSmart smart, address wallet, uint256 lastN) public view returns(Order[] memory) {
+    function getTotalBuyOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
-        uint256 count = length > lastN ? lastN : length;
+        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex - 1);
         Order[] memory orders = new Order[](count);
 
         uint256 j = 0;
-        for (uint i = length - 1; i >= count; --i) {
+        for (uint i = startIndex; i < startIndex + itemCount; ++i) {
             bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i);
             orders[j]  = smart.orders(orderHash);
             ++j;
@@ -61,10 +62,15 @@ contract BeeSmartLens {
     }
 
     // read both buyer & seller order of this wallet, less than 200 orders.
-    function getStatusUpdatedOrder(IBeeSmart smart, address wallet, uint256 updatedAfter) public view returns(Order[] memory, uint256) {
-        Order[] memory sellOrders = getTotalSellOrders(smart, wallet, 100);
-        Order[] memory buyOrders = getTotalBuyOrders(smart, wallet, 100);
-        Order[] memory result = new Order[](sellOrders.length + buyOrders.length);
+    function getStatusUpdatedSellOrder(
+        IBeeSmart smart,
+        address wallet,
+        uint256 startIndex,
+        uint256 itemCount,
+        uint256 updatedAfter
+    ) public view returns(Order[] memory, uint256) {
+        Order[] memory sellOrders = getTotalSellOrders(smart, wallet, startIndex, itemCount);
+        Order[] memory result = new Order[](sellOrders.length);
 
         uint256 length;
         for (uint256 i = 0; i < sellOrders.length; ++i) {
@@ -74,6 +80,19 @@ contract BeeSmartLens {
             }
         }
 
+        return (result, length);
+    }
+
+    function getStatusUpdatedBuyOrder(IBeeSmart smart,
+        address wallet,
+        uint256 startIndex,
+        uint256 itemCount,
+        uint256 updatedAfter
+    ) public view returns(Order[] memory, uint256) {
+        Order[] memory buyOrders = getTotalBuyOrders(smart, wallet, startIndex, itemCount);
+        Order[] memory result = new Order[](buyOrders.length);
+
+        uint256 length;
         for (uint256 i = 0; i < buyOrders.length; ++i) {
             if (buyOrders[i].updatedAt >= updatedAfter) {
                 result[length] = buyOrders[i];
@@ -82,11 +101,6 @@ contract BeeSmartLens {
         }
 
         return (result, length);
-    }
-
-    struct RebateInfo {
-        address token;  // trade token
-        uint256 rebate; // rebates
     }
 
     struct AssetBalance {
@@ -101,7 +115,7 @@ contract BeeSmartLens {
         uint256 airdropCount;
         uint256 reputationCount;
         uint256 totalTrades;
-        RebateInfo[] rebates;
+        uint256 rebateAmount; // rebate token is Candy.
         AssetBalance[] assetsBalance;
     }
 
@@ -117,12 +131,11 @@ contract BeeSmartLens {
             airdropCount: smart.airdropPoints(relationId),
             reputationCount: reputation.reputationPoints(address(smart), relationId),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),
-            rebates: new RebateInfo[](tradableTokens.length),
+            rebateAmount: 0,
             assetsBalance: new AssetBalance[](tradableTokens.length)
         });
-        for (uint i = 0; i < tradableTokens.length; ++i) {
-            info.rebates[i] = RebateInfo(tradableTokens[i], smart.rebateRewards(relationId, tradableTokens[i]));
-        }
+
+        info.rebateAmount = smart.rebateRewards(relationId);
 
         for (uint i = 0; i < tradableTokens.length; ++i) {
             address token = tradableTokens[i];

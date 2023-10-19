@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 contract Reputation {
     // issuer => relationId => amount
-    mapping(address => mapping(uint256 => uint256)) reputationPoints;
+    mapping(address => mapping(uint256 => uint256)) public reputationPoints;
 
     event ReputationGranted(address indexed issuer, uint256 indexed relationId, uint256 amount);
     event ReputationTookback(address indexed issuer, uint256 indexed relationId, uint256 amount);
