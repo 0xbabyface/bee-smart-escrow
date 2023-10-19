@@ -40,6 +40,9 @@ async function main() {
   const USDC = await ethers.deployContract("TestUSDC");
   await USDC.waitForDeployment();
 
+  // add support tokens
+  await smart.addSupportTokens([USDT.target, USDC.target, Candy.target]);
+
   console.log(`
   Bee Smart System Deployed:
     Candy:          ${Candy.target}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./components/IRelationship.sol";
 import "./components/IReputation.sol";
 
@@ -88,12 +89,20 @@ contract BeeSmartLens {
         uint256 rebate; // rebates
     }
 
+    struct AssetBalance {
+        address token;
+        string symbol;
+        uint8  decimals;
+        uint256 balance;
+    }
+
     struct UserInfo {
         uint256 relationId;
         uint256 airdropCount;
         uint256 reputationCount;
         uint256 totalTrades;
         RebateInfo[] rebates;
+        AssetBalance[] assetsBalance;
     }
 
     function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
@@ -108,10 +117,17 @@ contract BeeSmartLens {
             airdropCount: smart.airdropPoints(relationId),
             reputationCount: reputation.reputationPoints(address(smart), relationId),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),
-            rebates: new RebateInfo[](tradableTokens.length)
+            rebates: new RebateInfo[](tradableTokens.length),
+            assetsBalance: new AssetBalance[](tradableTokens.length)
         });
         for (uint i = 0; i < tradableTokens.length; ++i) {
             info.rebates[i] = RebateInfo(tradableTokens[i], smart.rebateRewards(relationId, tradableTokens[i]));
+        }
+
+        for (uint i = 0; i < tradableTokens.length; ++i) {
+            address token = tradableTokens[i];
+            IERC20Metadata erc20 = IERC20Metadata(token);
+            info.assetsBalance[i] = AssetBalance(tradableTokens[i], erc20.symbol(), erc20.decimals(), erc20.balanceOf(wallet));
         }
 
         return info;
