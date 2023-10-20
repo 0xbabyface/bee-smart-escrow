@@ -4,10 +4,10 @@ import {contracts} from "./env";
 
 
 async function main() {
-  const [wallet] = await ethers.getSigners() ;
+  const [seller, buyer] = await ethers.getSigners() ;
   const lens = await ethers.getContractAt("BeeSmartLens", contracts.BeeSmartLens);
 
-  const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, wallet.address);
+  const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);
 
   const printAssetInfo = (a: any[][]) => {
     for (let i = 0; i < a.length; i++) {
@@ -28,6 +28,12 @@ async function main() {
       rebateAmount:    ${userInfo[4]}
     `);
     printAssetInfo(userInfo[5])
+
+  const sellOrders = await lens.getTotalSellOrders(contracts.BeeSmartProxy, seller.address, 0, 100);
+  console.log(`${seller.address} seller orders: ${sellOrders}`);
+
+  const buyOrders = await lens.getTotalBuyOrders(contracts.BeeSmartProxy, buyer.address, 0, 100);
+  console.log(`${buyer.address} buyer orders: ${buyOrders}`);
 
 }
 

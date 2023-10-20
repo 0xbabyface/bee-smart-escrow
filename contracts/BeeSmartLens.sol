@@ -33,11 +33,11 @@ contract BeeSmartLens {
 
     function getTotalSellOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfSellOrders(wallet);
-        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex - 1);
+        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex);
         Order[] memory orders = new Order[](count);
 
         uint256 j = 0;
-        for (uint i = startIndex; i < startIndex + itemCount; ++i) {
+        for (uint i = startIndex; i < startIndex + count; ++i) {
             bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i);
             orders[j]  = smart.orders(orderHash);
             ++j;
@@ -48,11 +48,11 @@ contract BeeSmartLens {
 
     function getTotalBuyOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
-        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex - 1);
+        uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex);
         Order[] memory orders = new Order[](count);
 
         uint256 j = 0;
-        for (uint i = startIndex; i < startIndex + itemCount; ++i) {
+        for (uint i = startIndex; i < startIndex + count; ++i) {
             bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i);
             orders[j]  = smart.orders(orderHash);
             ++j;

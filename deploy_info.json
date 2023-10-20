@@ -6,7 +6,7 @@
         "Rebate":         "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
         "BeeSmart":       "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
         "BeeSmartProxy":  "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
-        "BeeSmartLens":   "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d",
+        "BeeSmartLens":   "0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8",
         "TestUSDT":       "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
         "TestUSDC":       "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0"
     },
@@ -18,7 +18,7 @@
         "Rebate":         "0x95Df26b577e6806F5b6880d934751e4A25E8d0c4",
         "BeeSmart":       "0x3688C858a2B03d96EC4EB80621B8c754552337f7",
         "BeeSmartProxy":  "0xEcb597404045981ccd037eEC70d665b3BcC7aEAc",
-        "BeeSmartLens":   "0xC4aEd0cD00855bBd976509f96b894F32322D9A21",
+        "BeeSmartLens":   "0x5f5BE23f154435b6794Ccc64b4d329fc34Bf70C7",
         "TestUSDT":       "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
         "TestUSDC":       "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
     }

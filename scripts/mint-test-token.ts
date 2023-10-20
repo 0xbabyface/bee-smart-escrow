@@ -11,7 +11,7 @@ async function mint(token: string, to: string, amount: bigint) {
 }
 
 async function main() {
-  const to = "";
+  const to = "0xbB2Da3f198f7f5aC4082e0f8ADF47d58FF93F604";
   await mint(contracts.TestUSDC, to, ethers.parseEther("100000"));
   await mint(contracts.TestUSDT, to, ethers.parseEther("100000"));
 }
