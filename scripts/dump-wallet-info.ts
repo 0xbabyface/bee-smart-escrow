@@ -1,14 +1,13 @@
 import { ethers } from "hardhat";
 
-import * as t from "../deploy_info.json";
+import {contracts} from "./env";
 
-const TT = t.local;
 
 async function main() {
   const [wallet] = await ethers.getSigners() ;
-  const lens = await ethers.getContractAt("BeeSmartLens", TT.BeeSmartLens);
+  const lens = await ethers.getContractAt("BeeSmartLens", contracts.BeeSmartLens);
 
-  const userInfo = await lens.getUserInfo(TT.BeeSmartProxy, wallet.address);
+  const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, wallet.address);
 
   const printAssetInfo = (a: any[][]) => {
     for (let i = 0; i < a.length; i++) {

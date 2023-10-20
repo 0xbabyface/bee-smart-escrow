@@ -1,10 +1,10 @@
 import { ethers } from "hardhat";
 
-import * as TT from "../deploy_info.json";
+import {contracts} from "./env";
 
 async function main() {
 
-  const relationship = await ethers.getContractAt("Relationship", TT.local.Relationship);
+  const relationship = await ethers.getContractAt("Relationship", contracts.Relationship);
 
   const tx = await relationship.bind(8888888888, 0);
   await tx.wait();

@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 
-import * as TT from "../deploy_info.json";
+import {contracts} from "./env";
 
 async function mint(token: string, to: string, amount: bigint) {
   const erc20 = await ethers.getContractAt("TestUSDT", token);
@@ -12,8 +12,8 @@ async function mint(token: string, to: string, amount: bigint) {
 
 async function main() {
   const to = "";
-  await mint(TT.mumbai.TestUSDC, to, ethers.parseEther("100000"));
-  await mint(TT.mumbai.TestUSDT, to, ethers.parseEther("100000"));
+  await mint(contracts.TestUSDC, to, ethers.parseEther("100000"));
+  await mint(contracts.TestUSDT, to, ethers.parseEther("100000"));
 }
 
 main();
