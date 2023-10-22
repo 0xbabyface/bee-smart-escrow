@@ -190,7 +190,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         order.status = OrderStatus.CONFIRMED;
         order.updatedAt = uint64(block.timestamp);
 
-        // S1: calculate fees for community & upper parents.
+        // S1: calculate fees for community & upper parents with CANDY
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
         // uint256 sellerFee    = communityFee * chargesBaredSellerRatio / RatioPrecision;
         uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
@@ -220,7 +220,22 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         airdropPoints[sellerRelationId] += 1;
         airdropPoints[buyerRelationId] += 1;
 
-        // S3: transfer token to buyer & community
+        // S3: calculate CANDY rewards for buyer & seller
+        uint256 buyerCandyReward = order.sellAmount * rewardForBuyerRatio / RatioPrecision;
+        uint256 sellerCandyReward = order.sellAmount * rewardForSellerRatio / RatioPrecision;
+        rebateRewards[buyerCandyReward] += buyerCandyReward;
+        rebateRewards[sellerRelationId] += sellerCandyReward;
+
+        // S4: record rewards info
+        OrderRewards storage rewards = orderRewards[orderHash];
+        rewards.buyerRewards = uint128(buyerCandyReward);
+        rewards.sellerRewards = uint128(sellerCandyReward);
+        rewards.buyerReputation = uint64(points);
+        rewards.sellerReputation = uint64(points);
+        rewards.buyerAirdropPoints = 1;
+        rewards.sellerAirdropPoints = 1;
+
+        // S5: transfer token to buyer & community
         IERC20(order.payToken).transfer(order.buyer, buyerGotAmount);
         IERC20(order.payToken).transfer(communityWallet, communityFee);
 

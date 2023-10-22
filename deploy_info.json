@@ -4,9 +4,9 @@
         "Reputation":     "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
         "Relationship":   "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
         "Rebate":         "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-        "BeeSmart":       "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+        "BeeSmart":       "0x82e01223d51Eb87e16A03E24687EDF0F294da6f1",
         "BeeSmartProxy":  "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
-        "BeeSmartLens":   "0x1613beB3B2C4f22Ee086B2b38C1476A3cE7f78E8",
+        "BeeSmartLens":   "0x7969c5eD335650692Bc04293B07F5BF2e7A673C0",
         "TestUSDT":       "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
         "TestUSDC":       "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0"
     },
@@ -16,9 +16,9 @@
         "Reputation":     "0x4b2A8F00916458840F7A22aCc444c00049eb03BD",
         "Relationship":   "0xdc44F75A9F795b2413c06d3eA622A8c3B4679B71",
         "Rebate":         "0x95Df26b577e6806F5b6880d934751e4A25E8d0c4",
-        "BeeSmart":       "0x3688C858a2B03d96EC4EB80621B8c754552337f7",
+        "BeeSmart":       "0xD5DdA387aeC58c24c71e25E34dabc10c754b7eC1",
         "BeeSmartProxy":  "0xEcb597404045981ccd037eEC70d665b3BcC7aEAc",
-        "BeeSmartLens":   "0x5f5BE23f154435b6794Ccc64b4d329fc34Bf70C7",
+        "BeeSmartLens":   "0xAB0262696Ab8cA90d80C85d5d83F4a4C8C8935e5",
         "TestUSDT":       "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
         "TestUSDC":       "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
     }

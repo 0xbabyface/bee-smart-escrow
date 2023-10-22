@@ -20,6 +20,15 @@ contract BeeSmartStorage {
         uint64  updatedAt;
     }
 
+    struct OrderRewards {
+        uint128 buyerRewards;
+        uint128 sellerRewards;
+        uint64 buyerAirdropPoints;
+        uint64 sellerAirdropPoints;
+        uint64 buyerReputation;
+        uint64 sellerReputation;
+    }
+
     struct DisputeInfo {
         address originator;
     }
@@ -67,4 +76,6 @@ contract BeeSmartStorage {
     uint256       public reputationRatio = 1E18; // reputation points ratio:  tradeAmount * reputationRatio = Points
 
     uint256       public rebateRatio = 0.1E18;  // 10% of community fee will rebate to parents
+
+    mapping(bytes32 => OrderRewards) public orderRewards;
 }

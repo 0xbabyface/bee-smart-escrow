@@ -49,9 +49,10 @@ async function main() {
   `);
     printAssetInfo(userInfo[5])
 
-  const printOrder = async (tag: string, orders: any[]) => {
+  const printOrder = async (tag: string, orders: any[], count: number) => {
     console.log(tag, ' ', orders.length);
-    for (let o of orders) {
+    for (let i = 0; i < count; i++) {
+      const o = orders[i];
       console.log(`
         orderHash:  ${o[0]}
         paytoken:   ${await tokenSymbol(o[1])}
@@ -64,19 +65,48 @@ async function main() {
     }
   };
 
-  const sellOrders = await lens.getTotalSellOrders(contracts.BeeSmartProxy, seller.address, 0, 100);
+  const sellOrders = await lens.getOngoingSellOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
   // console.log(`${seller.address} seller orders: ${sellOrders}`);
-  await printOrder("sell order: ", sellOrders);
+  await printOrder("ongoing sell order: ", sellOrders[0],  Number(sellOrders[1]));
 
-  const buyOrders = await lens.getTotalBuyOrders(contracts.BeeSmartProxy, seller.address, 0, 100);
+  const buyOrders = await lens.getOngoingBuyOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
   // console.log(`${buyer.address} buyer orders: ${buyOrders}`);
-  await printOrder("buy order: ", buyOrders);
+  await printOrder("ongoing buy order: ", buyOrders[0], Number(buyOrders[1]));
 
-  const [sellUpdatedOrders, length1] = await lens.getStatusUpdatedSellOrder(contracts.BeeSmartProxy, seller.address, 0, 100, Math.floor(Date.now() / 1000) - 86400);
-  await printOrder("status updated sell order: ", sellUpdatedOrders);
+  const printFinishedOrder = async (tag: string, orders: any[], rewards: any[], count: number) => {
+    console.log(tag, ' ', count);
+    for (let i = 0; i < count; i++) {
+      const o = orders[i];
+      const rw = rewards[i];
 
-  const [buyUPdatedOrders, length2] = await lens.getStatusUpdatedBuyOrder(contracts.BeeSmartProxy, seller.address, 0, 100, Math.floor(Date.now() / 1000) - 86400);
-  await printOrder("status updated buy order: ", buyUPdatedOrders);
+      console.log(`
+        orderHash:           ${o[0]}
+        paytoken:            ${await tokenSymbol(o[1])}
+        sellAmount:          ${ethers.formatEther(o[2])}
+        buyer:               ${o[3]}
+        seller:              ${o[4]}
+        status:              ${orderStatus(o[5])}
+        updatedAt:           ${o[6]}
+        buyerRewards:        ${ethers.formatEther(rw[0])}
+        sellerRewards:       ${ethers.formatEther(rw[1])}
+        buyerAirdropPoints:  ${ethers.formatEther(rw[2])}
+        sellerAirdropPoints: ${ethers.formatEther(rw[3])}
+        buyerReputation:     ${ethers.formatEther(rw[4])}
+        sellerReputation:    ${ethers.formatEther(rw[5])}
+      `)
+    }
+  }
+  const [hSellOrder, hSellReward, count] = await lens.getHistorySellOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
+  await printFinishedOrder("history sell order: ", hSellOrder, hSellReward, Number(count));
+
+  const [hBuyOrder, hBuyReward, count1] = await lens.getHistoryBuyOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
+  await printFinishedOrder("history buy order: ", hBuyOrder, hBuyReward, Number(count1));
+
+  // const [sellUpdatedOrders, length1] = await lens.getStatusUpdatedSellOrder(contracts.BeeSmartProxy, seller.address, 0, 100, Math.floor(Date.now() / 1000) - 86400);
+  // await printOrder("status updated sell order: ", sellUpdatedOrders);
+
+  // const [buyUPdatedOrders, length2] = await lens.getStatusUpdatedBuyOrder(contracts.BeeSmartProxy, seller.address, 0, 100, Math.floor(Date.now() / 1000) - 86400);
+  // await printOrder("status updated buy order: ", buyUPdatedOrders);
 }
 
 main();
