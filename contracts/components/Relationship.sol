@@ -13,7 +13,7 @@ contract Relationship is ERC721Enumerable {
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
     // idRelations about relationId, its parent id stored at index 0.
-    // RelationId => [ReputatonId]
+    // RelationId => [RelationId]
     mapping(uint256 => EnumerableSet.UintSet) idRelations;
     // bind wallet and relationId
     // RelationId => [address]
@@ -27,6 +27,7 @@ contract Relationship is ERC721Enumerable {
 
     error ParentExist(uint256 existParent, uint256 targetParent);
     error SonExist(uint256 parentId, uint256 sonId);
+    error WalletHadBound(uint256 relationId);
 
     event RelationBound(
         uint256 indexed parentId,
@@ -45,17 +46,19 @@ contract Relationship is ERC721Enumerable {
         uint256 sonId,
         address sonWallet
     ) internal {
-        if (idRelations[sonId].length() > 0)
-            revert ParentExist(idRelations[sonId].at(0), parentId);
-        idRelations[sonId].add(parentId);
+        // wallet should not be bound
+        require(walletsToId[sonWallet] == 0, "wallet has bouned");
 
-        if (idRelations[parentId].contains(sonId))
-            revert SonExist(parentId, sonId);
-        idRelations[parentId].add(sonId);
-
-        if (!idToWallets[sonId].contains(sonWallet)) idToWallets[sonId].add(sonWallet);
+        // if not the first time, parent id and son id should be bound
+        if (idRelations[sonId].length() != 0) {
+            require(idRelations[sonId].at(0) == parentId, "argent relation mismatch");
+        } else {
+            idRelations[sonId].add(parentId);
+            idRelations[parentId].add(sonId);
+        }
 
         walletsToId[sonWallet] = sonId;
+        idToWallets[sonId].add(sonWallet);
 
         emit RelationBound(parentId, sonId, sonWallet);
     }
@@ -73,7 +76,7 @@ contract Relationship is ERC721Enumerable {
     function bind(uint256 parendId, uint256 sonId) external {
         require(ownerOf(parendId) != address(0), "parent id not exist");
         if (sonId == 0) {
-            require(balanceOf(msg.sender) == 0, "sender had BSR");
+            require(balanceOf(msg.sender) == 0, "sender had relation id");
             sonId = nextId();
             // CAUTION: if msg.sender is a contract, it must make sure who can retrieve tokens from it.
             beneficialWallets[sonId] = msg.sender;
