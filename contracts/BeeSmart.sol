@@ -65,7 +65,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     // set reward fee ratio for buyer & seller
     function setRewardFeeRatio(uint256 rewardForBuyer, uint256 rewardForSeller) external onlyRole(AdminRole) {
-        require(rewardForBuyer + rewardForSeller == RatioPrecision, "total reatio is not percent 100");
+        require(0 <= rewardForBuyer && rewardForBuyer <= 1E18, "buyer reward ratio invalid");
+        require(0 <= rewardForSeller && rewardForSeller <= 1E18, "seller reward ratio invalid");
 
         rewardForBuyerRatio = rewardForBuyer;
         rewardForSellerRatio = rewardForSeller;
@@ -128,6 +129,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(address(reb).code.length > 0, "invalid rebate contract");
         rebate = reb;
         emit RebateSet(address(reb));
+    }
+
+    function setOrderStatusDurationSec(uint64 sec) external onlyRole(AdminRole) {
+        orderStatusDurationSec = sec;
     }
 
     // seller makes a order
@@ -232,8 +237,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rewards.sellerRewards = uint128(sellerCandyReward);
         rewards.buyerReputation = uint64(points);
         rewards.sellerReputation = uint64(points);
-        rewards.buyerAirdropPoints = 1;
-        rewards.sellerAirdropPoints = 1;
+        rewards.buyerAirdropPoints = uint64(1);
+        rewards.sellerAirdropPoints = uint64(1);
 
         // S5: transfer token to buyer & community
         IERC20(order.payToken).transfer(order.buyer, buyerGotAmount);

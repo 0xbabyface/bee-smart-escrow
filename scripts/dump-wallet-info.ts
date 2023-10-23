@@ -23,7 +23,8 @@ async function tokenSymbol(addr: string) {
 }
 
 async function main() {
-  const [seller, buyer] = await ethers.getSigners() ;
+  // const [seller, buyer] = await ethers.getSigners() ;
+  const seller = {address: "0xb20191CbeD6c9d9122b787Ee2bbbD758FD5287CE"}
   const lens = await ethers.getContractAt("BeeSmartLens", contracts.BeeSmartLens);
 
   const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);
@@ -89,8 +90,8 @@ async function main() {
         updatedAt:           ${o[6]}
         buyerRewards:        ${ethers.formatEther(rw[0])}
         sellerRewards:       ${ethers.formatEther(rw[1])}
-        buyerAirdropPoints:  ${ethers.formatEther(rw[2])}
-        sellerAirdropPoints: ${ethers.formatEther(rw[3])}
+        buyerAirdropPoints:  ${rw[2]}
+        sellerAirdropPoints: ${rw[3]}
         buyerReputation:     ${ethers.formatEther(rw[4])}
         sellerReputation:    ${ethers.formatEther(rw[5])}
       `)
