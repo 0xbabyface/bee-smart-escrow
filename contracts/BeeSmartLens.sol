@@ -181,42 +181,57 @@ contract BeeSmartLens {
     function getStatusUpdatedSellOrder(
         IBeeSmart smart,
         address wallet,
-        uint256 startIndex,
         uint256 itemCount,
         uint256 updatedAfter
-    ) public view returns(Order[] memory, uint256) {
-        Order[] memory sellOrders = getTotalSellOrders(smart, wallet, startIndex, itemCount);
-        Order[] memory result = new Order[](sellOrders.length);
+    ) public view returns(Order[] memory) {
+        uint256 length = smart.getLengthOfSellOrders(wallet);
+        Order[] memory tempOrders = new Order[](length);
 
-        uint256 length;
-        for (uint256 i = 0; i < sellOrders.length; ++i) {
-            if (sellOrders[i].updatedAt >= updatedAfter) {
-                result[length] = sellOrders[i];
-                ++length;
+        uint256 j;
+        for (uint256 i = length; i>= 1; --i) {
+            bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderHash);
+            if (ord.updatedAt > updatedAfter) {
+                tempOrders[j] = ord;
+                ++j;
             }
         }
 
-        return (result, length);
+        uint resultCount = itemCount > j ? j : itemCount;
+        Order[] memory resultOrders = new Order[](resultCount);
+        for (uint i = 0; i < resultCount; ++i) {
+            resultOrders[i] = tempOrders[i];
+        }
+
+        return resultOrders;
     }
 
-    function getStatusUpdatedBuyOrder(IBeeSmart smart,
+    function getStatusUpdatedBuyOrder(
+        IBeeSmart smart,
         address wallet,
-        uint256 startIndex,
         uint256 itemCount,
         uint256 updatedAfter
-    ) public view returns(Order[] memory, uint256) {
-        Order[] memory buyOrders = getTotalBuyOrders(smart, wallet, startIndex, itemCount);
-        Order[] memory result = new Order[](buyOrders.length);
+    ) public view returns(Order[] memory) {
+        uint256 length = smart.getLengthOfBuyOrders(wallet);
+        Order[] memory tempOrders = new Order[](length);
 
-        uint256 length;
-        for (uint256 i = 0; i < buyOrders.length; ++i) {
-            if (buyOrders[i].updatedAt >= updatedAfter) {
-                result[length] = buyOrders[i];
-                ++length;
+        uint256 j;
+        for (uint256 i = length; i>= 1; --i) {
+            bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderHash);
+            if (ord.updatedAt > updatedAfter) {
+                tempOrders[j] = ord;
+                ++j;
             }
         }
 
-        return (result, length);
+        uint resultCount = itemCount > j ? j : itemCount;
+        Order[] memory resultOrders = new Order[](resultCount);
+        for (uint i = 0; i < resultCount; ++i) {
+            resultOrders[i] = tempOrders[i];
+        }
+
+        return resultOrders;
     }
 
     struct AssetBalance {
