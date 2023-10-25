@@ -23,8 +23,8 @@ async function tokenSymbol(addr: string) {
 }
 
 async function main() {
-  // const [seller, buyer] = await ethers.getSigners() ;
-  const seller = {address: "0xb20191CbeD6c9d9122b787Ee2bbbD758FD5287CE"}
+  const [seller, buyer] = await ethers.getSigners() ;
+  // const seller = {address: "0xb20191CbeD6c9d9122b787Ee2bbbD758FD5287CE"}
   const lens = await ethers.getContractAt("BeeSmartLens", contracts.BeeSmartLens);
 
   const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);
@@ -50,9 +50,9 @@ async function main() {
   `);
     printAssetInfo(userInfo[5])
 
-  const printOrder = async (tag: string, orders: any[], count: number) => {
+  const printOrder = async (tag: string, orders: any[]) => {
     console.log(tag, ' ', orders.length);
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < orders.length; i++) {
       const o = orders[i];
       console.log(`
         orderHash:  ${o[0]}
@@ -68,15 +68,15 @@ async function main() {
 
   const sellOrders = await lens.getOngoingSellOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
   // console.log(`${seller.address} seller orders: ${sellOrders}`);
-  await printOrder("ongoing sell order: ", sellOrders[0],  Number(sellOrders[1]));
+  await printOrder("ongoing sell order: ", sellOrders);
 
   const buyOrders = await lens.getOngoingBuyOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
   // console.log(`${buyer.address} buyer orders: ${buyOrders}`);
-  await printOrder("ongoing buy order: ", buyOrders[0], Number(buyOrders[1]));
+  await printOrder("ongoing buy order: ", buyOrders);
 
-  const printFinishedOrder = async (tag: string, orders: any[], rewards: any[], count: number) => {
-    console.log(tag, ' ', count);
-    for (let i = 0; i < count; i++) {
+  const printFinishedOrder = async (tag: string, orders: any[], rewards: any[]) => {
+    console.log(tag, ' ', orders.length);
+    for (let i = 0; i < orders.length; i++) {
       const o = orders[i];
       const rw = rewards[i];
 
@@ -98,10 +98,10 @@ async function main() {
     }
   }
   const [hSellOrder, hSellReward, count] = await lens.getHistorySellOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
-  await printFinishedOrder("history sell order: ", hSellOrder, hSellReward, Number(count));
+  await printFinishedOrder("history sell order: ", hSellOrder, hSellReward);
 
   const [hBuyOrder, hBuyReward, count1] = await lens.getHistoryBuyOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
-  await printFinishedOrder("history buy order: ", hBuyOrder, hBuyReward, Number(count1));
+  await printFinishedOrder("history buy order: ", hBuyOrder, hBuyReward);
 
   // const [sellUpdatedOrders, length1] = await lens.getStatusUpdatedSellOrder(contracts.BeeSmartProxy, seller.address, 0, 100, Math.floor(Date.now() / 1000) - 86400);
   // await printOrder("status updated sell order: ", sellUpdatedOrders);
