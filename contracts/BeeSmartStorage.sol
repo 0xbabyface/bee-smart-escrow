@@ -9,9 +9,9 @@ import "./components/IRebate.sol";
 
 contract BeeSmartStorage {
 
-    enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
+    enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, DISPUTING, RECALLED }
     struct Order {
-        bytes32 orderHash;
+        uint256 orderId;
         address payToken;
         uint256 sellAmount;
         address buyer;
@@ -23,10 +23,10 @@ contract BeeSmartStorage {
     struct OrderRewards {
         uint128 buyerRewards;
         uint128 sellerRewards;
-        uint64 buyerAirdropPoints;
-        uint64 sellerAirdropPoints;
-        uint64 buyerReputation;
-        uint64 sellerReputation;
+        uint128 buyerAirdropPoints;
+        uint128 sellerAirdropPoints;
+        uint128 buyerReputation;
+        uint128 sellerReputation;
     }
 
     struct DisputeInfo {
@@ -41,16 +41,20 @@ contract BeeSmartStorage {
     uint256 public constant RatioPrecision = 1E18;
     uint256 public constant RebateLevels = 10;
 
+    uint256 public totalOrdersCount;
+
     EnumerableSet.AddressSet supportedTokens; // supported ERC20.
 
-    mapping(bytes32 => Order) public orders; // total orders, includes pendings and finished orders.
-    // orderHash => DisputeInfo
-    mapping(bytes32 => DisputeInfo) public disputedOrder;
-    // orderHash => AdjustInfo
-    mapping(bytes32 => AdjustInfo) public adjustedOrder;
+    mapping(uint256 => Order) public orders; // total orders, includes pendings and finished orders.
+    // orderId => DisputeInfo
+    mapping(uint256 => DisputeInfo) public disputedOrder;
+    // orderId => AdjustInfo
+    mapping(uint256 => AdjustInfo) public adjustedOrder;
+    // orderId => OrderRewards
+    mapping(uint256 => OrderRewards) public orderRewards;
 
-    mapping(address => bytes32[]) public sellOrdersOfUser;
-    mapping(address => bytes32[]) public buyOrdersOfUser;
+    mapping(address => uint256[]) public sellOrdersOfUser;
+    mapping(address => uint256[]) public buyOrdersOfUser;
 
     // relationId => rebate (for CANDY)
     mapping(uint256 => uint256) public rebateRewards;
@@ -77,5 +81,4 @@ contract BeeSmartStorage {
 
     uint256       public rebateRatio = 0.1E18;  // 10% of community fee will rebate to parents
 
-    mapping(bytes32 => OrderRewards) public orderRewards;
 }

@@ -46,6 +46,7 @@ async function main() {
   await smart.setRebateRatio(ethers.parseEther("0.1"));   // rebate ratio 10%
 
   await smart.setOrderStatusDurationSec(30 * 60);  // order wait for 30 minutes then can disputing
+  await smart.setCommunityWallet(owner.address);
 
   await Candy.setMinter(BeeSmartProxy.target, true);
 

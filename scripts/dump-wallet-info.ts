@@ -10,9 +10,8 @@ function orderStatus(index: bigint) {
     case 2n: return "adjusted";
     case 3n: return "confirmed";
     case 4n: return "canceled";
-    case 5n: return "timeout";
-    case 6n: return "disputing";
-    case 7n: return "recalled";
+    case 5n: return "disputing";
+    case 6n: return "recalled";
     default: return "error";
   }
 }

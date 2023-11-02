@@ -11,13 +11,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     bytes32 public constant AdminRole     = keccak256("BeeSmart.Admin");
     bytes32 public constant CommunityRole = keccak256("BeeSmart.Community");
 
-    event OrderMade(bytes32 indexed orderHash, address indexed seller, address indexed buyer, address payToken, uint256 amount);
-    event OrderCancelled(bytes32 indexed orderHash, address indexed seller, address indexed buyer);
-    event OrderAdjusted(bytes32 indexed orderHash, address indexed seller, address indexed buyer, uint256 preAmount, uint256 nowAmount);
-    event OrderDisputed(bytes32 indexed orderHash, address indexed firedBy);
-    event OrderDisputeRecalled(bytes32 indexed orderHash, address indexed recalledBy);
-    event OrderRecalled(bytes32 indexed orderHash, address indexed recalledBy);
-    event OrderConfirmed(bytes32 indexed orderHash, uint256 buyerGotAmount, uint256 feeAmount);
+    event OrderMade(uint256 indexed orderId, address indexed seller, address indexed buyer, address payToken, uint256 amount);
+    event OrderCancelled(uint256 indexed orderId, address indexed seller, address indexed buyer);
+    event OrderAdjusted(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 preAmount, uint256 nowAmount);
+    event OrderDisputed(uint256 indexed orderId, address indexed firedBy);
+    event OrderDisputeRecalled(uint256 indexed orderId, address indexed recalledBy);
+    event OrderRecalled(uint256 indexed orderId, address indexed recalledBy);
+    event OrderConfirmed(uint256 indexed orderId, uint256 buyerGotAmount, uint256 feeAmount);
 
     event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
     event CommunityFeeRatioSet(address indexed admin, uint256 ratio, uint256 buyerCharged, uint256 sellerCharged);
@@ -136,29 +136,32 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     // seller makes a order
-    function makeOrder(bytes32 orderHash, address payToken, uint256 sellAmount, address buyer) external {
+    function makeOrder(address payToken, uint256 sellAmount, address buyer) external {
         require(supportedTokens.contains(payToken), "token not support");
         require(sellAmount > 0, "pay amount zero");
-        require(orders[orderHash].payToken == address(0), "order existed");
+        // require(orders[orderId].payToken == address(0), "order existed");
 
+        ++totalOrdersCount;
+
+        uint256 orderId = totalOrdersCount;
         uint256 buyerId = relationship.getRelationId(buyer);
         uint256 sellerId = relationship.getRelationId(msg.sender);
         require(buyerId != sellerId, "can not sell to self");
 
-        orders[orderHash] = Order(orderHash, payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
-        sellOrdersOfUser[msg.sender].push(orderHash);
-        buyOrdersOfUser[buyer].push(orderHash);
+        orders[orderId] = Order(orderId, payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
+        sellOrdersOfUser[msg.sender].push(orderId);
+        buyOrdersOfUser[buyer].push(orderId);
 
         uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
 
         IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
-        emit OrderMade(orderHash, msg.sender, buyer, payToken, sellAmount);
+        emit OrderMade(orderId, msg.sender, buyer, payToken, sellAmount);
     }
 
     // buyer want to adjust amount of order
-    function adjustOrder(bytes32 orderHash, uint256 amount) external {
-        Order storage order = orders[orderHash];
+    function adjustOrder(uint256 orderId, uint256 amount) external {
+        Order storage order = orders[orderId];
 
         require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender, "only buyer allowed");
@@ -166,15 +169,15 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         if (order.sellAmount == amount) {
             order.status = OrderStatus.CANCELLED;
-            emit OrderCancelled(orderHash, order.seller, order.buyer);
+            emit OrderCancelled(orderId, order.seller, order.buyer);
         } else {
             uint256 preAmount = order.sellAmount;
             order.sellAmount -= amount;
             order.status = OrderStatus.ADJUSTED;
 
-            adjustedOrder[orderHash] = AdjustInfo(preAmount, order.sellAmount);
+            adjustedOrder[orderId] = AdjustInfo(preAmount, order.sellAmount);
 
-            emit OrderAdjusted(orderHash, order.seller, order.buyer, preAmount, order.sellAmount);
+            emit OrderAdjusted(orderId, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
         order.updatedAt = uint64(block.timestamp);
@@ -186,8 +189,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     // seller confirmed and want to finish an order.
-    function confirmOrder(bytes32 orderHash) external {
-        Order storage order = orders[orderHash];
+    function confirmOrder(uint256 orderId) external {
+        Order storage order = orders[orderId];
 
         require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.seller == msg.sender, "only seller allowed");
@@ -232,24 +235,24 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rebateRewards[sellerRelationId] += sellerCandyReward;
 
         // S4: record rewards info
-        OrderRewards storage rewards = orderRewards[orderHash];
+        OrderRewards storage rewards = orderRewards[orderId];
         rewards.buyerRewards = uint128(buyerCandyReward);
         rewards.sellerRewards = uint128(sellerCandyReward);
-        rewards.buyerReputation = uint64(points);
-        rewards.sellerReputation = uint64(points);
-        rewards.buyerAirdropPoints = uint64(1);
-        rewards.sellerAirdropPoints = uint64(1);
+        rewards.buyerReputation = uint128(points);
+        rewards.sellerReputation = uint128(points);
+        rewards.buyerAirdropPoints = uint128(1);
+        rewards.sellerAirdropPoints = uint128(1);
 
         // S5: transfer token to buyer & community
         IERC20(order.payToken).transfer(order.buyer, buyerGotAmount);
         IERC20(order.payToken).transfer(communityWallet, communityFee);
 
-        emit OrderConfirmed(orderHash, buyerGotAmount, order.sellAmount - buyerGotAmount);
+        emit OrderConfirmed(orderId, buyerGotAmount, order.sellAmount - buyerGotAmount);
     }
 
     // buyer or seller wants to dispute
-    function dispute(bytes32 orderHash) external {
-        Order storage order = orders[orderHash];
+    function dispute(uint256 orderId) external {
+        Order storage order = orders[orderId];
         require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "in waiting time");
         require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender || order.seller == msg.sender, "only buyer or seller allowed");
@@ -257,36 +260,36 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         order.status = OrderStatus.DISPUTING;
         order.updatedAt = uint64(block.timestamp);
 
-        disputedOrder[orderHash] = DisputeInfo(msg.sender);
+        disputedOrder[orderId] = DisputeInfo(msg.sender);
 
-        emit OrderDisputed(orderHash, msg.sender);
+        emit OrderDisputed(orderId, msg.sender);
     }
 
     // buyer or seller or community role can recall a dispution.
-    function recallDispute(bytes32 orderHash) external {
-        Order storage order = orders[orderHash];
+    function recallDispute(uint256 orderId) external {
+        Order storage order = orders[orderId];
 
         require(order.status == OrderStatus.DISPUTING, "order status mismatch");
-        require(disputedOrder[orderHash].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
+        require(disputedOrder[orderId].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
 
         order.status = OrderStatus.WAITING;
         order.updatedAt = uint64(block.timestamp);
 
-        delete disputedOrder[orderHash];
+        delete disputedOrder[orderId];
 
-        emit OrderDisputeRecalled(orderHash, msg.sender);
+        emit OrderDisputeRecalled(orderId, msg.sender);
     }
 
     // some disputes happend and community make the recall decision.
-    function recallOrder(bytes32 orderHash, address winner) external onlyRole(CommunityRole) {
-        Order storage order = orders[orderHash];
+    function recallOrder(uint256 orderId, address winner) external onlyRole(CommunityRole) {
+        Order storage order = orders[orderId];
 
         require(order.status == OrderStatus.DISPUTING, "order status mismatch");
 
         order.status = OrderStatus.RECALLED;
         order.updatedAt = uint64(block.timestamp);
 
-        delete disputedOrder[orderHash];
+        delete disputedOrder[orderId];
 
         // minus the reputation points from order.disputeOriginator
         uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
@@ -300,7 +303,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
          uint256 sellerFee = order.sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
         IERC20(order.payToken).transfer(order.seller, order.sellAmount + sellerFee);
 
-        emit OrderRecalled(orderHash, msg.sender);
+        emit OrderRecalled(orderId, msg.sender);
     }
 
     //

@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./components/IRelationship.sol";
 import "./components/IReputation.sol";
 
-enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, TIMEOUT, DISPUTING, RECALLED }
+enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, DISPUTING, RECALLED }
 struct Order {
-    bytes32 orderHash;
+    uint256 orderId;
     address payToken;
     uint256 sellAmount;
     address buyer;
@@ -19,19 +19,19 @@ struct Order {
 struct OrderRewards {
     uint128 buyerRewards;
     uint128 sellerRewards;
-    uint64 buyerAirdropPoints;
-    uint64 sellerAirdropPoints;
-    uint64 buyerReputation;
-    uint64 sellerReputation;
+    uint128 buyerAirdropPoints;
+    uint128 sellerAirdropPoints;
+    uint128 buyerReputation;
+    uint128 sellerReputation;
 }
 
 interface IBeeSmart {
     function getLengthOfSellOrders(address) external view returns(uint256);
     function getLengthOfBuyOrders(address) external view returns(uint256);
-    function sellOrdersOfUser(address, uint256) external view returns(bytes32);
-    function buyOrdersOfUser(address, uint256) external view returns(bytes32);
-    function orders(bytes32) external view returns(Order memory);
-    function orderRewards(bytes32) external view returns(OrderRewards memory);
+    function sellOrdersOfUser(address, uint256) external view returns(uint256);
+    function buyOrdersOfUser(address, uint256) external view returns(uint256);
+    function orders(uint256) external view returns(Order memory);
+    function orderRewards(uint256) external view returns(OrderRewards memory);
     function relationship() external view returns(IRelationship);
     function reputation() external view returns(IReputation);
     function airdropPoints(uint256) external view returns(uint256);
@@ -43,15 +43,15 @@ contract BeeSmartLens {
     function getOngoingSellOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfSellOrders(wallet);
 
-        bytes32[] memory hashes = new bytes32[](length);
+        uint256[] memory hashes = new uint256[](length);
         uint count;
         for (uint i = length; i >= 1; --i) {
-            bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt <= timestamp &&
                 (ord.status == OrderStatus.WAITING || ord.status == OrderStatus.ADJUSTED || ord.status == OrderStatus.DISPUTING)
             ) {
-                hashes[count] = orderHash;
+                hashes[count] = orderId;
                 ++count;
             }
         }
@@ -66,15 +66,15 @@ contract BeeSmartLens {
 
     function getOngoingBuyOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount) public view returns(Order[] memory) {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
-        bytes32[] memory hashes = new bytes32[](length);
+        uint256[] memory hashes = new uint256[](length);
         uint count;
         for (uint i = length; i >= 1; --i) {
-            bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt <= timestamp &&
                 (ord.status == OrderStatus.WAITING || ord.status == OrderStatus.ADJUSTED || ord.status == OrderStatus.DISPUTING)
             ) {
-                hashes[count] = orderHash;
+                hashes[count] = orderId;
                 ++count;
             }
         }
@@ -93,16 +93,16 @@ contract BeeSmartLens {
         returns(Order[] memory, OrderRewards[] memory)
     {
         uint256 length = smart.getLengthOfSellOrders(wallet);
-        bytes32[] memory hashes = new bytes32[](length);
+        uint256[] memory hashes = new uint256[](length);
 
         uint count;
         for (uint i = length; i >= 1; --i) {
-            bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.TIMEOUT || ord.status == OrderStatus.RECALLED)
+                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.RECALLED)
             ) {
-                hashes[count] = orderHash;
+                hashes[count] = orderId;
                 ++count;
             }
         }
@@ -123,16 +123,16 @@ contract BeeSmartLens {
         returns(Order[] memory, OrderRewards[] memory)
     {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
-        bytes32[] memory hashes = new bytes32[](length);
+        uint256[] memory hashes = new uint256[](length);
 
         uint count;
         for (uint i = length; i >= 1; --i) {
-            bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.TIMEOUT || ord.status == OrderStatus.RECALLED)
+                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.RECALLED)
             ) {
-                hashes[count] = orderHash;
+                hashes[count] = orderId;
                 ++count;
             }
         }
@@ -154,8 +154,8 @@ contract BeeSmartLens {
 
         uint256 j = 0;
         for (uint i = startIndex; i < startIndex + count; ++i) {
-            bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i);
-            orders[j]  = smart.orders(orderHash);
+            uint256 orderId =  smart.sellOrdersOfUser(wallet, i);
+            orders[j]  = smart.orders(orderId);
             ++j;
         }
 
@@ -169,8 +169,8 @@ contract BeeSmartLens {
 
         uint256 j = 0;
         for (uint i = startIndex; i < startIndex + count; ++i) {
-            bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i);
-            orders[j]  = smart.orders(orderHash);
+            uint256 orderId =  smart.buyOrdersOfUser(wallet, i);
+            orders[j]  = smart.orders(orderId);
             ++j;
         }
 
@@ -189,8 +189,8 @@ contract BeeSmartLens {
 
         uint256 j;
         for (uint256 i = length; i>= 1; --i) {
-            bytes32 orderHash =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt > updatedAfter) {
                 tempOrders[j] = ord;
                 ++j;
@@ -217,8 +217,8 @@ contract BeeSmartLens {
 
         uint256 j;
         for (uint256 i = length; i>= 1; --i) {
-            bytes32 orderHash =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderHash);
+            uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
+            Order memory ord = smart.orders(orderId);
             if (ord.updatedAt > updatedAfter) {
                 tempOrders[j] = ord;
                 ++j;
