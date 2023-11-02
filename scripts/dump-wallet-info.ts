@@ -103,11 +103,11 @@ async function main() {
   const [hBuyOrder, hBuyReward] = await lens.getHistoryBuyOrders(contracts.BeeSmartProxy, seller.address, Math.floor(Date.now() / 1000), 100);
   await printFinishedOrder("history buy order: ", hBuyOrder, hBuyReward);
 
-  const sellUpdatedOrders = await lens.getStatusUpdatedSellOrder(contracts.BeeSmartProxy, seller.address, 100, 0);
-  await printOrder("status updated sell order: ", sellUpdatedOrders);
+  // const sellUpdatedOrders = await lens.getStatusUpdatedSellOrder(contracts.BeeSmartProxy, seller.address, 100, 0);
+  // await printOrder("status updated sell order: ", sellUpdatedOrders);
 
-  const buyUPdatedOrders = await lens.getStatusUpdatedBuyOrder(contracts.BeeSmartProxy, seller.address, 100, 0);
-  await printOrder("status updated buy order: ", buyUPdatedOrders);
+  // const buyUPdatedOrders = await lens.getStatusUpdatedBuyOrder(contracts.BeeSmartProxy, seller.address, 100, 0);
+  // await printOrder("status updated buy order: ", buyUPdatedOrders);
 }
 
 main();
