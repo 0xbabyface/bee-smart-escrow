@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 import "./BeeSmartStorage.sol";
 
@@ -102,7 +102,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function addSupportTokens(address[] memory tokens) external onlyRole(AdminRole) {
         for (uint i = 0; i < tokens.length; ++i) {
             if (supportedTokens.contains(tokens[i])) continue;
-            else supportedTokens.add(tokens[i]);
+            else {
+                supportedTokens.add(tokens[i]);
+                supportedTokenDecimals[tokens[i]] = IERC20Metadata(tokens[i]).decimals();
+            }
         }
     }
 
@@ -135,18 +138,25 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         orderStatusDurationSec = sec;
     }
 
+    function alignAmount18(address payToken, uint256 sellAmount) internal view returns(uint256) {
+        return sellAmount * 10**(18 - supportedTokenDecimals[payToken]);
+    }
     // seller makes a order
     function makeOrder(address payToken, uint256 sellAmount, address buyer) external {
         require(supportedTokens.contains(payToken), "token not support");
         require(sellAmount > 0, "pay amount zero");
-        // require(orders[orderId].payToken == address(0), "order existed");
+
+        uint256 buyerId = relationship.getRelationId(buyer);
+        uint256 sellerId = relationship.getRelationId(msg.sender);
+        require(buyerId != sellerId, "can not sell to self");
+
+        uint256 alignedAmount = alignAmount18(payToken, sellAmount);
+        require(reputation.isReputationEnough(buyerId, alignedAmount), "not enough reputation for buyer");
+        require(reputation.isReputationEnough(sellerId, alignedAmount), "not enough reputation for seller");
 
         ++totalOrdersCount;
 
         uint256 orderId = totalOrdersCount;
-        uint256 buyerId = relationship.getRelationId(buyer);
-        uint256 sellerId = relationship.getRelationId(msg.sender);
-        require(buyerId != sellerId, "can not sell to self");
 
         orders[orderId] = Order(orderId, payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
         sellOrdersOfUser[msg.sender].push(orderId);
@@ -154,7 +164,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
 
-        IERC20(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
+        IERC20Metadata(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
         emit OrderMade(orderId, msg.sender, buyer, payToken, sellAmount);
     }
@@ -185,7 +195,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
         uint256 sellerFee = amount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
 
-        IERC20(order.payToken).transfer(order.seller, amount + sellerFee);
+        IERC20Metadata(order.payToken).transfer(order.seller, amount + sellerFee);
     }
 
     // seller confirmed and want to finish an order.
@@ -220,7 +230,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         // S2: calculate reputation points for both seller & buyer.
         uint256 sellerRelationId = relationship.getRelationId(order.seller);
         uint256 buyerRelationId = relationship.getRelationId(order.buyer);
-        uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
+
+        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
+        uint256 points = alignedAmount * reputationRatio / RatioPrecision;
 
         reputation.grant(sellerRelationId, points);
         reputation.grant(buyerRelationId, points);
@@ -244,8 +256,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rewards.sellerAirdropPoints = uint128(1);
 
         // S5: transfer token to buyer & community
-        IERC20(order.payToken).transfer(order.buyer, buyerGotAmount);
-        IERC20(order.payToken).transfer(communityWallet, communityFee);
+        IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
+        IERC20Metadata(order.payToken).transfer(communityWallet, communityFee);
 
         emit OrderConfirmed(orderId, buyerGotAmount, order.sellAmount - buyerGotAmount);
     }
@@ -300,8 +312,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
 
         // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
-         uint256 sellerFee = order.sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
-        IERC20(order.payToken).transfer(order.seller, order.sellAmount + sellerFee);
+        uint256 sellerFee = order.sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+        IERC20Metadata(order.payToken).transfer(order.seller, order.sellAmount + sellerFee);
 
         emit OrderRecalled(orderId, msg.sender);
     }

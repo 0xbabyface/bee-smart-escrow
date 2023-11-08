@@ -1,5 +1,6 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "hardhat-contract-sizer";
 
 const accounts =
     process.env.PK !== undefined
@@ -22,6 +23,12 @@ const config: HardhatUserConfig = {
         runs: 200,
       },
     },
+  },
+
+  contractSizer: {
+    alphaSort: true,
+    runOnCompile: true,
+    disambiguatePaths: false,
   },
 
   networks: {

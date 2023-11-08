@@ -44,6 +44,8 @@ contract BeeSmartStorage {
     uint256 public totalOrdersCount;
 
     EnumerableSet.AddressSet supportedTokens; // supported ERC20.
+    // token address => decimals
+    mapping(address => uint256) supportedTokenDecimals;
 
     mapping(uint256 => Order) public orders; // total orders, includes pendings and finished orders.
     // orderId => DisputeInfo
