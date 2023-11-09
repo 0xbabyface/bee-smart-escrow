@@ -7,6 +7,7 @@ import "./BeeSmartStorage.sol";
 
 contract BeeSmart is AccessControl, BeeSmartStorage {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Order for Order.Record;
 
     bytes32 public constant AdminRole     = keccak256("BeeSmart.Admin");
     bytes32 public constant CommunityRole = keccak256("BeeSmart.Community");
@@ -14,10 +15,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event OrderMade(uint256 indexed orderId, address indexed seller, address indexed buyer, address payToken, uint256 amount);
     event OrderCancelled(uint256 indexed orderId, address indexed seller, address indexed buyer);
     event OrderAdjusted(uint256 indexed orderId, address indexed seller, address indexed buyer, uint256 preAmount, uint256 nowAmount);
-    event OrderDisputed(uint256 indexed orderId, address indexed firedBy);
+    event OrderDisputed(uint256 indexed orderId, address indexed firedBy, Order.Status s);
     event OrderDisputeRecalled(uint256 indexed orderId, address indexed recalledBy);
     event OrderRecalled(uint256 indexed orderId, address indexed recalledBy);
     event OrderConfirmed(uint256 indexed orderId, uint256 buyerGotAmount, uint256 feeAmount);
+    event CommunityDecided(uint256 indexed orderId, address indexed judger, uint8 decision);
 
     event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
     event CommunityFeeRatioSet(address indexed admin, uint256 ratio, uint256 buyerCharged, uint256 sellerCharged);
@@ -144,7 +146,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // seller makes a order
     function makeOrder(address payToken, uint256 sellAmount, address buyer) external {
         require(supportedTokens.contains(payToken), "token not support");
-        require(sellAmount > 0, "pay amount zero");
+        require(sellAmount > 0, "sell amount is zero");
 
         uint256 buyerId = relationship.getRelationId(buyer);
         uint256 sellerId = relationship.getRelationId(msg.sender);
@@ -156,105 +158,73 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         ++totalOrdersCount;
 
-        uint256 orderId = totalOrdersCount;
+        uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+        IERC20Metadata(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
-        orders[orderId] = Order(orderId, payToken, sellAmount, buyer, msg.sender, OrderStatus.WAITING, uint64(block.timestamp));
+        uint256 orderId = totalOrdersCount;
+        orders[orderId] = Order.Record(
+                                orderId,
+                                sellAmount,
+                                payToken,
+                                uint64(block.timestamp),
+                                buyer,
+                                msg.sender,
+                                Order.Status.NORMAL,
+                                Order.Status.UNKNOWN,
+                                sellerFee,
+                                0
+        );
         sellOrdersOfUser[msg.sender].push(orderId);
         buyOrdersOfUser[buyer].push(orderId);
-
-        uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
-
-        IERC20Metadata(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
         emit OrderMade(orderId, msg.sender, buyer, payToken, sellAmount);
     }
 
     // buyer want to adjust amount of order
-    function adjustOrder(uint256 orderId, uint256 amount) external {
-        Order storage order = orders[orderId];
+    function adjustOrder(uint256 orderId, uint256 amount) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
 
-        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
+        require(order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender, "only buyer allowed");
         require(order.sellAmount >= amount, "amount overflow");
 
+        uint256 rebateFee = amount * order.sellerFee / order.sellAmount; // rebate sell fee by ratio
+
         if (order.sellAmount == amount) {
-            order.status = OrderStatus.CANCELLED;
+            order.toStatus(Order.Status.CANCELLED);
             emit OrderCancelled(orderId, order.seller, order.buyer);
         } else {
             uint256 preAmount = order.sellAmount;
             order.sellAmount -= amount;
-            order.status = OrderStatus.ADJUSTED;
+            order.toStatus(Order.Status.ADJUSTED);
 
-            adjustedOrder[orderId] = AdjustInfo(preAmount, order.sellAmount);
+            adjustedOrder[orderId] = Order.AdjustInfo(preAmount, order.sellAmount);
 
             emit OrderAdjusted(orderId, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
-        order.updatedAt = uint64(block.timestamp);
-
-        // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
-        uint256 sellerFee = amount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
-
-        IERC20Metadata(order.payToken).transfer(order.seller, amount + sellerFee);
+        if (rebateFee > 0) order.sellerFee -= rebateFee;
+        IERC20Metadata(order.payToken).transfer(order.seller, amount + rebateFee);
     }
 
     // seller confirmed and want to finish an order.
-    function confirmOrder(uint256 orderId) external {
-        Order storage order = orders[orderId];
+    function confirmOrder(uint256 orderId) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
 
-        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
+        require(order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED, "order status mismatch");
         require(order.seller == msg.sender, "only seller allowed");
 
-        order.status = OrderStatus.CONFIRMED;
-        order.updatedAt = uint64(block.timestamp);
+        order.toStatus(Order.Status.CONFIRMED);
 
         // S1: calculate fees for community & upper parents with CANDY
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
-        // uint256 sellerFee    = communityFee * chargesBaredSellerRatio / RatioPrecision;
         uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
-
         uint256 buyerGotAmount = order.sellAmount - buyerFee;
 
-        uint256[] memory parentIds = relationship.getParentRelationId(order.seller, RebateLevels);
-        if (parentIds.length > 0) {
-            uint256 rebateAmount = communityFee * rebateRatio / RatioPrecision;  // 10% for rebates;
-            uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
-            for (uint256 i = 0; i < parentIds.length; ++i) {
-                if (parentIds[i] == 0) break;
-                rebateRewards[parentIds[i]] += parentRebates[i];
-            }
+        communityFee -= rebateParents(order.seller, communityFee);
+        rewardCandy(order);
 
-            communityFee -= rebateAmount;
-        }
-
-        // S2: calculate reputation points for both seller & buyer.
-        uint256 sellerRelationId = relationship.getRelationId(order.seller);
-        uint256 buyerRelationId = relationship.getRelationId(order.buyer);
-
-        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
-        uint256 points = alignedAmount * reputationRatio / RatioPrecision;
-
-        reputation.grant(sellerRelationId, points);
-        reputation.grant(buyerRelationId, points);
-
-        airdropPoints[sellerRelationId] += 1;
-        airdropPoints[buyerRelationId] += 1;
-
-        // S3: calculate CANDY rewards for buyer & seller
-        uint256 buyerCandyReward = order.sellAmount * rewardForBuyerRatio / RatioPrecision;
-        uint256 sellerCandyReward = order.sellAmount * rewardForSellerRatio / RatioPrecision;
-        rebateRewards[buyerCandyReward] += buyerCandyReward;
-        rebateRewards[sellerRelationId] += sellerCandyReward;
-
-        // S4: record rewards info
-        OrderRewards storage rewards = orderRewards[orderId];
-        rewards.buyerRewards = uint128(buyerCandyReward);
-        rewards.sellerRewards = uint128(sellerCandyReward);
-        rewards.buyerReputation = uint128(points);
-        rewards.sellerReputation = uint128(points);
-        rewards.buyerAirdropPoints = uint128(1);
-        rewards.sellerAirdropPoints = uint128(1);
-
+        order.buyerFee = buyerFee;
         // S5: transfer token to buyer & community
         IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
         IERC20Metadata(order.payToken).transfer(communityWallet, communityFee);
@@ -262,60 +232,115 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit OrderConfirmed(orderId, buyerGotAmount, order.sellAmount - buyerGotAmount);
     }
 
-    // buyer or seller wants to dispute
-    function dispute(uint256 orderId) external {
-        Order storage order = orders[orderId];
-        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "in waiting time");
-        require(order.status == OrderStatus.WAITING || order.status == OrderStatus.ADJUSTED, "order status mismatch");
-        require(order.buyer == msg.sender || order.seller == msg.sender, "only buyer or seller allowed");
+    // seller wants to dispute
+    function sellerDispute(uint256 orderId) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
+        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+        require(order.seller == msg.sender, "only seller allowed");
 
-        order.status = OrderStatus.DISPUTING;
-        order.updatedAt = uint64(block.timestamp);
-
-        disputedOrder[orderId] = DisputeInfo(msg.sender);
-
-        emit OrderDisputed(orderId, msg.sender);
-    }
-
-    // buyer or seller or community role can recall a dispution.
-    function recallDispute(uint256 orderId) external {
-        Order storage order = orders[orderId];
-
-        require(order.status == OrderStatus.DISPUTING, "order status mismatch");
-        require(disputedOrder[orderId].originator == msg.sender || hasRole(CommunityRole, msg.sender), "not allowd");
-
-        order.status = OrderStatus.WAITING;
-        order.updatedAt = uint64(block.timestamp);
-
-        delete disputedOrder[orderId];
-
-        emit OrderDisputeRecalled(orderId, msg.sender);
-    }
-
-    // some disputes happend and community make the recall decision.
-    function recallOrder(uint256 orderId, address winner) external onlyRole(CommunityRole) {
-        Order storage order = orders[orderId];
-
-        require(order.status == OrderStatus.DISPUTING, "order status mismatch");
-
-        order.status = OrderStatus.RECALLED;
-        order.updatedAt = uint64(block.timestamp);
-
-        delete disputedOrder[orderId];
-
-        // minus the reputation points from order.disputeOriginator
-        uint256 points = order.sellAmount * reputationRatio / RatioPrecision;
-        if (winner == order.seller) {
-            reputation.takeback(relationship.getRelationId(order.buyer), points);
-        } else if (winner == order.buyer) {
-            reputation.takeback(relationship.getRelationId(order.seller), points);
+        if (order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED) {
+            // order is in normal status, and seller raise a dispute
+            order.toStatus(Order.Status.SELLERDISPUTE);
+        } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
+            // two dispute buy seller, send token back to seller
+            // this order is handled like being cancelled
+            // no reputation nor CANDY reward is granted
+            order.toStatus(Order.Status.CONFIRMED);
+            releaseToSeller(order);
+        } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
+            // both seller and buyer dispute
+            // the order is locked, and should waiting for community's decision
+            order.toStatus(Order.Status.LOCKED);
+        } else {
+            require(false, "seller can not dispute now");
         }
 
-        // FIXME: (not charge fee when makeOrder, but should return back while adjustOrder)
-        uint256 sellerFee = order.sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
-        IERC20Metadata(order.payToken).transfer(order.seller, order.sellAmount + sellerFee);
+        emit OrderDisputed(orderId, msg.sender, order.currStatus);
+    }
 
-        emit OrderRecalled(orderId, msg.sender);
+    // seller recall dispute
+    function sellerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
+        // recall is no need to wait 30mins
+        // require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+        require(order.seller == msg.sender, "only seller allowed");
+
+        if (order.currStatus == Order.Status.SELLERDISPUTE) {
+            order.toStatus(Order.Status.NORMAL);
+        } else {
+            require(false, "seller can not recall now");
+        }
+
+       emit OrderDisputeRecalled(orderId, msg.sender);
+    }
+
+    // buyer wants to dispute
+    function buyerDispute(uint256 orderId) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
+        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+        require(order.buyer == msg.sender, "only seller allowed");
+
+        if (order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED) {
+            // order is in normal status, and seller raise a dispute
+            order.toStatus(Order.Status.BUYERDISPUTE);
+        } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
+            // two dispute buy buyer, send token to buyer
+            // charge community fee from this order,
+            // but no reputation nor CANDY granted
+            order.toStatus(Order.Status.CONFIRMED);
+            releaseToBuyer(order);
+        } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
+            // both seller and buyer dispute
+            // the order is locked, and should waiting for community's decision
+            order.toStatus(Order.Status.LOCKED);
+        } else {
+            require(false, "buyer can not dispute now");
+        }
+
+        emit OrderDisputed(orderId, msg.sender, order.currStatus);
+    }
+
+    // buyer recall dispute
+    function buyerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
+        Order.Record storage order = orders[orderId];
+        // recall is no need to wait 30mins
+        // require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+        require(order.buyer == msg.sender, "only seller allowed");
+
+        if (order.currStatus == Order.Status.BUYERDISPUTE) {
+            order.toStatus(Order.Status.NORMAL);
+        } else {
+            require(false, "seller can not recall now");
+        }
+
+       emit OrderDisputeRecalled(orderId, msg.sender);
+    }
+
+    // community decide a locked order.
+    // decision should be:
+    //    0: buyer win
+    //    1: seller win
+    //    2: no winner, set order to NORMAL status
+    function communityDecide(uint256 orderId, uint8 decision)
+        external
+        onlyRole(CommunityRole)
+        onlyExistOrder(orderId)
+    {
+        Order.Record storage order = orders[orderId];
+        require(order.currStatus == Order.Status.LOCKED, "not locked order");
+        decision = decision % 3;
+
+        if (decision == 0 /* Buyer Win */) {
+            releaseToBuyer(order);
+            clearReputation(order.seller);
+        } else if (decision == 1 /* Seller Win*/) {
+            releaseToSeller(order);
+            clearReputation(order.buyer);
+        } else { /* set order to NORMAL */
+            order.toStatus(Order.Status.NORMAL);
+        }
+
+        emit CommunityDecided(orderId, msg.sender, decision);
     }
 
     //
@@ -334,5 +359,76 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             tokens[i] = supportedTokens.at(i);
         }
         return tokens;
+    }
+
+// --------------------- internal functions -------------------------------
+    function releaseToBuyer(Order.Record storage order) internal {
+        uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
+        uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
+        uint256 buyerGotAmount = order.sellAmount - buyerFee;
+
+        order.buyerFee = buyerFee;
+
+        IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
+        IERC20Metadata(order.payToken).transfer(communityWallet, communityFee);
+    }
+
+    function releaseToSeller(Order.Record storage order) internal {
+        IERC20Metadata(order.payToken).transfer(order.seller, order.sellAmount + order.sellerFee);
+    }
+
+    function clearReputation(address dealer) internal {
+        uint256 relationId = relationship.getRelationId(dealer);
+        uint256 points = reputation.reputationPoints(address(this), relationId);
+
+        reputation.takeback(relationId, points);
+    }
+
+    function rebateParents(address seller, uint256 fee)
+        internal
+        returns(uint256)
+    {
+        uint256 rebateAmount;
+        uint256[] memory parentIds = relationship.getParentRelationId(seller, RebateLevels);
+        if (parentIds.length > 0) {
+            rebateAmount = fee * rebateRatio / RatioPrecision;  // 10% for rebates;
+            uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
+            for (uint256 i = 0; i < parentIds.length; ++i) {
+                if (parentIds[i] == 0) break;
+                rebateRewards[parentIds[i]] += parentRebates[i];
+            }
+        }
+        return rebateAmount;
+    }
+
+    function rewardCandy(Order.Record memory order)
+        internal
+    {
+        // S2: calculate reputation points for both seller & buyer.
+        uint256 sellerRelationId = relationship.getRelationId(order.seller);
+        uint256 buyerRelationId = relationship.getRelationId(order.buyer);
+
+        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
+        uint256 points = alignedAmount * reputationRatio / RatioPrecision;
+
+        reputation.grant(sellerRelationId, points);
+        reputation.grant(buyerRelationId, points);
+
+        airdropPoints[sellerRelationId] += 1;
+        airdropPoints[buyerRelationId] += 1;
+        // S3: calculate CANDY rewards for buyer & seller
+        uint256 buyerCandyReward = order.sellAmount * rewardForBuyerRatio / RatioPrecision;
+        uint256 sellerCandyReward = order.sellAmount * rewardForSellerRatio / RatioPrecision;
+        rebateRewards[buyerCandyReward] += buyerCandyReward;
+        rebateRewards[sellerRelationId] += sellerCandyReward;
+
+        // S4: record rewards info
+        Order.Rewards storage rewards = orderRewards[order.orderId];
+        rewards.buyerRewards = uint128(buyerCandyReward);
+        rewards.sellerRewards = uint128(sellerCandyReward);
+        rewards.buyerReputation = uint128(points);
+        rewards.sellerReputation = uint128(points);
+        rewards.buyerAirdropPoints = uint128(1);
+        rewards.sellerAirdropPoints = uint128(1);
     }
 }
