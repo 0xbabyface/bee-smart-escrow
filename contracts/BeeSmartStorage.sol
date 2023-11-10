@@ -10,52 +10,6 @@ import "./libs/Order.sol";
 
 contract BeeSmartStorage {
 
-    // enum OrderStatus {
-    //     UNKNOWN,       // occupate the default status
-    //     NORMAL,        // normal status
-    //     ADJUSTED,      // buyer adjuste amount
-    //     CONFIRMED,     // seller confirmed
-    //     CANCELLED,     // buyer adjust amount to 0
-    //     SELLERDISPUTE, // seller dispute
-    //     BUYERDISPUTE,  // buyer dispute
-    //     LOCKED,        // both buyer and seller disputed
-    //     RECALLED       // seller dispute and buyer no response
-    // }
-
-    // struct Order {
-    //     uint256 orderId;
-    //     address payToken;
-    //     uint256 sellAmount;
-    //     address buyer;
-    //     address seller;
-    //     OrderStatus status;
-    //     uint64  updatedAt;
-    // }
-
-    // struct OrderRewards {
-    //     uint128 buyerRewards;
-    //     uint128 sellerRewards;
-    //     uint128 buyerAirdropPoints;
-    //     uint128 sellerAirdropPoints;
-    //     uint128 buyerReputation;
-    //     uint128 sellerReputation;
-    // }
-
-    // struct StatusTransform {
-    //     OrderStatus currStatus;
-    //     OrderStatus prevStatus;
-    // }
-
-    // function orderToStatus(StatusTransform storage st, OrderStatus s) internal {
-    //     st.prevStatus = st.currStatus;
-    //     st.currStatus = s;
-    // }
-
-    // struct AdjustInfo {
-    //     uint256 preAmount;
-    //     uint256 curAmount;
-    // }
-
     modifier onlyExistOrder(uint256 id) {
         require(orders[id].updatedAt != 0, "order not exist");
         _;
@@ -93,7 +47,9 @@ contract BeeSmartStorage {
     IReputation   public reputation;
     IRebate       public rebate;
 
+    address       public rewardTokenAddress;
     address       public communityWallet;
+    address       public financialWallet;
 
     uint256       public communityFeeRatio = 0.03E18;  // fee ratio: 0.3%
     uint256       public chargesBaredBuyerRatio = 1E18;  // 100% buyer fee ratio
