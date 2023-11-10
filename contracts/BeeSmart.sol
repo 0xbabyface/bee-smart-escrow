@@ -189,6 +189,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         uint256 buyerId = relationship.getRelationId(buyer);
         uint256 sellerId = relationship.getRelationId(msg.sender);
+        require(sellerId != 0, "seller is not registered");
         require(buyerId != sellerId, "can not sell to self");
 
         uint256 alignedAmount = alignAmount18(payToken, sellAmount);
@@ -228,21 +229,21 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(order.sellAmount >= amount, "amount overflow");
 
         uint256 rebateFee = amount * order.sellerFee / order.sellAmount; // rebate sell fee by ratio
+        if (rebateFee > 0) order.sellerFee -= rebateFee;
 
         if (order.sellAmount == amount) {
             order.toStatus(Order.Status.CANCELLED);
             emit OrderCancelled(orderId, order.seller, order.buyer);
         } else {
-            uint256 preAmount = order.sellAmount;
-            order.sellAmount -= amount;
             order.toStatus(Order.Status.ADJUSTED);
 
+            uint256 preAmount = order.sellAmount;
+            order.sellAmount -= amount;
             adjustedOrder[orderId] = Order.AdjustInfo(preAmount, order.sellAmount);
 
             emit OrderAdjusted(orderId, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
-        if (rebateFee > 0) order.sellerFee -= rebateFee;
         IERC20Metadata(order.payToken).transfer(order.seller, amount + rebateFee);
     }
 

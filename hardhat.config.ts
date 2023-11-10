@@ -25,11 +25,11 @@ const config: HardhatUserConfig = {
     },
   },
 
-  contractSizer: {
-    alphaSort: true,
-    runOnCompile: true,
-    disambiguatePaths: false,
-  },
+  // contractSizer: {
+  //   alphaSort: true,
+  //   runOnCompile: true,
+  //   disambiguatePaths: false,
+  // },
 
   networks: {
     zksynctest: {
