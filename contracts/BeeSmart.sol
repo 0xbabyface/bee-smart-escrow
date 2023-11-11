@@ -282,7 +282,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // order is in normal status, and seller raise a dispute
             order.toStatus(Order.Status.SELLERDISPUTE);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
-            // two dispute buy seller, send token back to seller
+            // two dispute by seller, send token back to seller
             // this order is handled like being cancelled
             // no reputation nor CANDY reward is granted
             order.toStatus(Order.Status.CONFIRMED);
@@ -301,8 +301,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // seller recall dispute
     function sellerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
-        // recall is no need to wait 30mins
-        // require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
         require(order.seller == msg.sender, "only seller allowed");
 
         if (order.currStatus == Order.Status.SELLERDISPUTE) {
@@ -318,13 +316,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function buyerDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
         require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
-        require(order.buyer == msg.sender, "only seller allowed");
+        require(order.buyer == msg.sender, "only buyer allowed");
 
         if (order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED) {
-            // order is in normal status, and seller raise a dispute
+            // order is in normal status, and buyer raise a dispute
             order.toStatus(Order.Status.BUYERDISPUTE);
         } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
-            // two dispute buy buyer, send token to buyer
+            // two dispute by buyer, send token to buyer
             // charge community fee from this order,
             // but no reputation nor CANDY granted
             order.toStatus(Order.Status.CONFIRMED);
@@ -343,14 +341,12 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // buyer recall dispute
     function buyerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
-        // recall is no need to wait 30mins
-        // require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
-        require(order.buyer == msg.sender, "only seller allowed");
+        require(order.buyer == msg.sender, "only buyer allowed");
 
         if (order.currStatus == Order.Status.BUYERDISPUTE) {
             order.toStatus(Order.Status.NORMAL);
         } else {
-            require(false, "seller can not recall now");
+            require(false, "buyer can not recall now");
         }
 
        emit OrderDisputeRecalled(orderId, msg.sender);
