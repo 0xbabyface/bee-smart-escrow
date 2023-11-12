@@ -275,13 +275,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // seller wants to dispute
     function sellerDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
-        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
         require(order.seller == msg.sender, "only seller allowed");
 
         if (order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED) {
+            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
             // order is in normal status, and seller raise a dispute
             order.toStatus(Order.Status.SELLERDISPUTE);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
+            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
             // two dispute by seller, send token back to seller
             // this order is handled like being cancelled
             // no reputation nor CANDY reward is granted
@@ -315,13 +316,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // buyer wants to dispute
     function buyerDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
-        require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
         require(order.buyer == msg.sender, "only buyer allowed");
 
         if (order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED) {
+            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
             // order is in normal status, and buyer raise a dispute
             order.toStatus(Order.Status.BUYERDISPUTE);
         } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
+            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
             // two dispute by buyer, send token to buyer
             // charge community fee from this order,
             // but no reputation nor CANDY granted
@@ -367,9 +369,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         decision = decision % 3;
 
         if (decision == 0 /* Buyer Win */) {
+            order.toStatus(Order.Status.BUYERWIN);
             releaseToBuyer(order);
             clearReputation(order.seller);
         } else if (decision == 1 /* Seller Win*/) {
+            order.toStatus(Order.Status.SELLERWIN);
             releaseToSeller(order);
             clearReputation(order.buyer);
         } else { /* set order to NORMAL */
@@ -411,6 +415,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     function releaseToSeller(Order.Record storage order) internal {
         IERC20Metadata(order.payToken).transfer(order.seller, order.sellAmount + order.sellerFee);
+        order.sellerFee = 0;
     }
 
     function clearReputation(address dealer) internal {

@@ -11,7 +11,8 @@ library Order {
         SELLERDISPUTE, // seller dispute
         BUYERDISPUTE,  // buyer dispute
         LOCKED,        // both buyer and seller disputed
-        RECALLED       // seller dispute and buyer no response
+        SELLERWIN,     // community decide seller win
+        BUYERWIN       // community decide buyer win
     }
 
     struct Record {

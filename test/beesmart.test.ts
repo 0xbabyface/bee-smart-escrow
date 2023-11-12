@@ -14,7 +14,8 @@ enum Status {
   SELLERDISPUTE, // seller dispute
   BUYERDISPUTE,  // buyer dispute
   LOCKED,        // both buyer and seller disputed
-  RECALLED       // seller dispute and buyer no response
+  SELLERWIN,     // community decide seller win
+  BUYERWIN       // community decide buyer win
 }
 const Precision = ethers.parseEther("1");
 
@@ -38,7 +39,7 @@ describe("BeeSmart", async function () {
     const BeeSmart = await ethers.deployContract("BeeSmart");
     await BeeSmart.waitForDeployment();
 
-    const [owner, buyer, seller] = await ethers.getSigners();
+    const [owner, buyer, seller, communitier] = await ethers.getSigners();
     const initializeData = BeeSmart.interface.encodeFunctionData("initialize", [[owner.address], []])
     const BeeSmartProxy = await ethers.deployContract("BeeSmartProxy", [BeeSmart.target, initializeData, owner.address]);
     await BeeSmartProxy.waitForDeployment();
@@ -64,6 +65,8 @@ describe("BeeSmart", async function () {
 
     await smart.setReputationRatio(ethers.parseEther("1.0"));  //  1 : 1 for candy
     await smart.setRebateRatio(ethers.parseEther("0.1"));   // rebate ratio 10%
+
+    await smart.setRole(await smart.CommunityRole(), communitier.address, true);
 
     await smart.setOrderStatusDurationSec(30 * 60);  // order wait for 30 minutes then can disputing
 
@@ -93,7 +96,7 @@ describe("BeeSmart", async function () {
     await smart.setRewardToken(Candy.target);
     await Candy.connect(owner).approve(smart.target, ethers.parseEther("1000000000000"));
 
-    return { smart, buyer, seller, USDC, USDT, Reputation, Relationship, communityWallet, financialWallet };
+    return { smart, buyer, seller, communitier, USDC, USDT, Reputation, Relationship, communityWallet, financialWallet };
   }
 
   async function forwardBlockTimestamp(forwardSecs: number) {
@@ -363,31 +366,189 @@ describe("BeeSmart", async function () {
 
 
     it("seller dispute and dispute again", async function () {
+      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const sellerBalanceBefore = await USDT.balanceOf(seller.address);
 
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(20 * 60); // forward 20minutes
+      await expect(smart.connect(seller).sellerDispute(orderId)).to.revertedWith("status in waiting time");
+      await forwardBlockTimestamp(10 * 60 + 1);
+      await smart.connect(seller).sellerDispute(orderId);
+
+      await forwardBlockTimestamp(20 * 60);
+      await expect(smart.connect(seller).sellerDispute(orderId)).to.revertedWith("status in waiting time");
+
+      await forwardBlockTimestamp(20 * 60);
+      await smart.connect(seller).sellerDispute(orderId); // dispute again
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.CONFIRMED);
+      expect(order[7]).to.equal(Status.SELLERDISPUTE);
+      expect(order[8]).to.equal(0n);
+      expect(order[9]).to.equal(0n);
+
+      const sellerBalanceAfter = await USDT.balanceOf(seller.address);
+      expect(sellerBalanceBefore).to.equal(sellerBalanceAfter);
     });
 
     it("buyer dispute and dispute again", async function () {
+      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const buyerBalanceBefore = await USDT.balanceOf(buyer.address);
 
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+
+      await forwardBlockTimestamp(20 * 60);
+      await expect(smart.connect(buyer).buyerDispute(orderId)).to.revertedWith("status in waiting time");
+
+      await forwardBlockTimestamp(20 * 60);
+      await smart.connect(buyer).buyerDispute(orderId); // dispute again
+
+      const buyerF = await buyerFee(smart, sellAmount);
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.CONFIRMED);
+      expect(order[7]).to.equal(Status.BUYERDISPUTE);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(buyerF);
+
+      const buyerBalanceAfter = await USDT.balanceOf(buyer.address);
+      expect(buyerBalanceAfter - buyerBalanceBefore).to.equal(sellAmount - buyerF);
     });
 
     it("seller dispute then buyer dispute", async function () {
+      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const sellerBalanceBefore = await USDT.balanceOf(seller.address);
 
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(seller).sellerDispute(orderId);
+      await smart.connect(buyer).buyerDispute(orderId);
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.LOCKED);
+      expect(order[7]).to.equal(Status.SELLERDISPUTE);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(0n);
     });
 
     it("buyer dispute then seller dispute", async function () {
+      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
 
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+      await smart.connect(seller).sellerDispute(orderId);
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.LOCKED);
+      expect(order[7]).to.equal(Status.BUYERDISPUTE);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(0n);
     });
 
     it("community decide seller win for locked order", async function () {
+      const { smart, seller, buyer, communitier, USDT, Reputation, Relationship } = await loadFixture(deployBeeSmarts);
 
+      const sellerBalanceBefore = await USDT.balanceOf(seller.address);
+
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+      await smart.connect(seller).sellerDispute(orderId);
+
+      await smart.connect(communitier).communityDecide(orderId, 1);
+
+      const sellerBalanceAfter = await USDT.balanceOf(seller.address);
+      expect(sellerBalanceBefore).to.equal(sellerBalanceAfter);
+
+      const buyerRelationId = await Relationship.getRelationId(buyer.address);
+      const buyerReputationPoints = await Reputation.reputationPoints(smart.target, buyerRelationId);
+      expect(buyerReputationPoints).to.equal(0n);
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.SELLERWIN);
+      expect(order[7]).to.equal(Status.LOCKED);
+      expect(order[8]).to.equal(0n);
+      expect(order[9]).to.equal(0n);
     });
 
     it("community decide buyer win for locked order", async function () {
+      const { smart, seller, buyer, communitier, USDT, Reputation, Relationship } = await loadFixture(deployBeeSmarts);
 
+      const buyerBalanceBefore = await USDT.balanceOf(buyer.address);
+
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+      await smart.connect(seller).sellerDispute(orderId);
+
+      await smart.connect(communitier).communityDecide(orderId, 0);
+
+      const buyerBalanceAfter = await USDT.balanceOf(buyer.address);
+      expect(buyerBalanceAfter - buyerBalanceBefore).to.equal(sellAmount - await buyerFee(smart, sellAmount));
+
+      const sellerRelationId = await Relationship.getRelationId(seller.address);
+      const sellerReputationPoints = await Reputation.reputationPoints(smart.target, sellerRelationId);
+      expect(sellerReputationPoints).to.equal(0n);
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.BUYERWIN);
+      expect(order[7]).to.equal(Status.LOCKED);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(await buyerFee(smart, sellAmount));
     });
 
     it("community decide draw for locked order", async function () {
+      const { smart, seller, buyer, communitier, USDT, Reputation, Relationship } = await loadFixture(deployBeeSmarts);
 
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+      await smart.connect(seller).sellerDispute(orderId);
+
+      await smart.connect(communitier).communityDecide(orderId, 2);
+
+      let order = await smart.orders(orderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.NORMAL);
+      expect(order[7]).to.equal(Status.LOCKED);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(0n);
     });
 
   });
