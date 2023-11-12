@@ -4,153 +4,145 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./components/IRelationship.sol";
 import "./components/IReputation.sol";
-
-enum OrderStatus { UNKNOWN, WAITING, ADJUSTED, CONFIRMED, CANCELLED, DISPUTING, RECALLED }
-struct Order {
-    uint256 orderId;
-    address payToken;
-    uint256 sellAmount;
-    address buyer;
-    address seller;
-    OrderStatus status;
-    uint64  updatedAt;
-}
-
-struct OrderRewards {
-    uint128 buyerRewards;
-    uint128 sellerRewards;
-    uint128 buyerAirdropPoints;
-    uint128 sellerAirdropPoints;
-    uint128 buyerReputation;
-    uint128 sellerReputation;
-}
+import "./libs/Order.sol";
 
 interface IBeeSmart {
     function getLengthOfSellOrders(address) external view returns(uint256);
     function getLengthOfBuyOrders(address) external view returns(uint256);
     function sellOrdersOfUser(address, uint256) external view returns(uint256);
     function buyOrdersOfUser(address, uint256) external view returns(uint256);
-    function orders(uint256) external view returns(Order memory);
-    function orderRewards(uint256) external view returns(OrderRewards memory);
+    function orders(uint256) external view returns(Order.Record memory);
+    function orderRewards(uint256) external view returns(Order.Rewards memory);
     function relationship() external view returns(IRelationship);
     function reputation() external view returns(IReputation);
     function airdropPoints(uint256) external view returns(uint256);
     function getSupportTokens() external view returns(address[] memory);
-    function rebateRewards(uint256) external view returns(uint256);
+    function rebateCandyRewards(uint256) external view returns(uint256);
 }
 
+enum FilterType { SellOngoing, BuyOngoing, SellHistory, BuyHistory}
 contract BeeSmartLens {
-    function getOngoingSellOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount) public view returns(Order[] memory) {
+
+    function _filterOngoingOrders(FilterType fType, IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount)
+        internal
+        view
+        returns(Order.Record[] memory)
+    {
         uint256 length = smart.getLengthOfSellOrders(wallet);
 
         uint256[] memory hashes = new uint256[](length);
         uint count;
         for (uint i = length; i >= 1; --i) {
-            uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
-            if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.WAITING || ord.status == OrderStatus.ADJUSTED || ord.status == OrderStatus.DISPUTING)
-            ) {
+            uint256 orderId;
+            if (fType == FilterType.SellOngoing) {
+                orderId =  smart.sellOrdersOfUser(wallet, i - 1);
+            } else if (fType == FilterType.BuyOngoing) {
+                orderId =  smart.buyOrdersOfUser(wallet, i - 1);
+            }
+
+            Order.Record memory ord = smart.orders(orderId);
+            if (_isOngoingOrder(ord, timestamp)) {
                 hashes[count] = orderId;
                 ++count;
             }
         }
 
         uint256 resultCount = maxCount > count ? count : maxCount;
-        Order[] memory resultOrders = new Order[](resultCount);
+        Order.Record[] memory resultOrders = new Order.Record[](resultCount);
         for (uint i = 0; i < resultCount; ++i) {
             resultOrders[i] = smart.orders(hashes[count - i - 1]);
         }
         return resultOrders;
     }
 
-    function getOngoingBuyOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount) public view returns(Order[] memory) {
-        uint256 length = smart.getLengthOfBuyOrders(wallet);
+    function _filterHistoryOrders(FilterType fType, IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount)
+        internal
+        view
+        returns(Order.Record[] memory, Order.Rewards[] memory)
+    {
+        uint256 length = smart.getLengthOfSellOrders(wallet);
+
         uint256[] memory hashes = new uint256[](length);
         uint count;
         for (uint i = length; i >= 1; --i) {
-            uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
-            if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.WAITING || ord.status == OrderStatus.ADJUSTED || ord.status == OrderStatus.DISPUTING)
-            ) {
+            uint256 orderId;
+            if (fType == FilterType.SellHistory) {
+                orderId =  smart.sellOrdersOfUser(wallet, i - 1);
+            } else if (fType == FilterType.BuyHistory) {
+                orderId =  smart.buyOrdersOfUser(wallet, i - 1);
+            }
+
+            Order.Record memory ord = smart.orders(orderId);
+            if ( _isHistoryOrder(ord, timestamp)) {
                 hashes[count] = orderId;
                 ++count;
             }
         }
 
         uint256 resultCount = maxCount > count ? count : maxCount;
-        Order[] memory resultOrders = new Order[](resultCount);
+        Order.Record[] memory resultOrders = new Order.Record[](resultCount);
+        Order.Rewards[] memory historyOrdersRewards = new Order.Rewards[](resultCount);
         for (uint i = 0; i < resultCount; ++i) {
             resultOrders[i] = smart.orders(hashes[count - i - 1]);
+            historyOrdersRewards[i] = smart.orderRewards(hashes[count - i - 1]);
         }
-        return resultOrders;
+        return (resultOrders, historyOrdersRewards);
+    }
+
+    function _isOngoingOrder(Order.Record memory ord, uint256 timestamp) internal pure returns(bool) {
+        return  ord.updatedAt <= timestamp &&
+                (
+                ord.currStatus == Order.Status.NORMAL ||
+                ord.currStatus == Order.Status.ADJUSTED ||
+                ord.currStatus == Order.Status.SELLERDISPUTE ||
+                ord.currStatus == Order.Status.BUYERDISPUTE ||
+                ord.currStatus == Order.Status.LOCKED
+                );
+    }
+
+    function _isHistoryOrder(Order.Record memory ord, uint256 timestamp) internal pure returns(bool) {
+        return  (ord.updatedAt <= timestamp &&
+                (
+                ord.currStatus == Order.Status.CONFIRMED ||
+                ord.currStatus == Order.Status.CANCELLED ||
+                ord.currStatus == Order.Status.BUYERWIN ||
+                ord.currStatus == Order.Status.SELLERWIN
+                )
+            );
+    }
+
+    function getOngoingSellOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount)
+        public
+        view
+        returns(Order.Record[] memory)
+    {
+        return _filterOngoingOrders(FilterType.SellOngoing, smart, wallet, timestamp, maxCount);
+    }
+
+    function getOngoingBuyOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount) public view returns(Order.Record[] memory) {
+        return _filterOngoingOrders(FilterType.BuyOngoing, smart, wallet, timestamp, maxCount);
     }
 
     function getHistorySellOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount)
         public
         view
-        returns(Order[] memory, OrderRewards[] memory)
+        returns(Order.Record[] memory, Order.Rewards[] memory)
     {
-        uint256 length = smart.getLengthOfSellOrders(wallet);
-        uint256[] memory hashes = new uint256[](length);
-
-        uint count;
-        for (uint i = length; i >= 1; --i) {
-            uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
-            if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.RECALLED)
-            ) {
-                hashes[count] = orderId;
-                ++count;
-            }
-        }
-
-        uint256 resultCount = maxCount > count ? count : maxCount;
-        Order[] memory resultOrders = new Order[](resultCount);
-        OrderRewards[] memory historyOrdersRewards = new OrderRewards[](resultCount);
-        for (uint i = 0; i < resultCount; ++i) {
-            resultOrders[i] = smart.orders(hashes[count - i - 1]);
-            historyOrdersRewards[i] = smart.orderRewards(hashes[count - i - 1]);
-        }
-        return (resultOrders, historyOrdersRewards);
+        return _filterHistoryOrders(FilterType.SellHistory, smart, wallet, timestamp, maxCount);
     }
 
     function getHistoryBuyOrders(IBeeSmart smart, address wallet, uint256 timestamp, uint256 maxCount)
         public
         view
-        returns(Order[] memory, OrderRewards[] memory)
+        returns(Order.Record[] memory, Order.Rewards[] memory)
     {
-        uint256 length = smart.getLengthOfBuyOrders(wallet);
-        uint256[] memory hashes = new uint256[](length);
-
-        uint count;
-        for (uint i = length; i >= 1; --i) {
-            uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
-            if (ord.updatedAt <= timestamp &&
-                (ord.status == OrderStatus.CONFIRMED || ord.status == OrderStatus.CANCELLED || ord.status == OrderStatus.RECALLED)
-            ) {
-                hashes[count] = orderId;
-                ++count;
-            }
-        }
-
-        uint256 resultCount = maxCount > count ? count : maxCount;
-        Order[] memory resultOrders = new Order[](resultCount);
-        OrderRewards[] memory historyOrdersRewards = new OrderRewards[](resultCount);
-        for (uint i = 0; i < resultCount; ++i) {
-            resultOrders[i] = smart.orders(hashes[count - i - 1]);
-            historyOrdersRewards[i] = smart.orderRewards(hashes[count - i - 1]);
-        }
-        return (resultOrders, historyOrdersRewards);
+        return _filterHistoryOrders(FilterType.BuyHistory, smart, wallet, timestamp, maxCount);
     }
 
-    function getTotalSellOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
+    function getTotalSellOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order.Record[] memory) {
         uint256 length = smart.getLengthOfSellOrders(wallet);
         uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex);
-        Order[] memory orders = new Order[](count);
+        Order.Record[] memory orders = new Order.Record[](count);
 
         uint256 j = 0;
         for (uint i = startIndex; i < startIndex + count; ++i) {
@@ -162,10 +154,10 @@ contract BeeSmartLens {
         return orders;
     }
 
-    function getTotalBuyOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order[] memory) {
+    function getTotalBuyOrders(IBeeSmart smart, address wallet, uint256 startIndex, uint256 itemCount) public view returns(Order.Record[] memory) {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
         uint256 count = length >= (startIndex + itemCount) ? itemCount : (length - startIndex);
-        Order[] memory orders = new Order[](count);
+        Order.Record[] memory orders = new Order.Record[](count);
 
         uint256 j = 0;
         for (uint i = startIndex; i < startIndex + count; ++i) {
@@ -183,14 +175,14 @@ contract BeeSmartLens {
         address wallet,
         uint256 itemCount,
         uint256 updatedAfter
-    ) public view returns(Order[] memory) {
+    ) public view returns(Order.Record[] memory) {
         uint256 length = smart.getLengthOfSellOrders(wallet);
-        Order[] memory tempOrders = new Order[](length);
+        Order.Record[] memory tempOrders = new Order.Record[](length);
 
         uint256 j;
         for (uint256 i = length; i>= 1; --i) {
             uint256 orderId =  smart.sellOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
+            Order.Record memory ord = smart.orders(orderId);
             if (ord.updatedAt > updatedAfter) {
                 tempOrders[j] = ord;
                 ++j;
@@ -198,7 +190,7 @@ contract BeeSmartLens {
         }
 
         uint resultCount = itemCount > j ? j : itemCount;
-        Order[] memory resultOrders = new Order[](resultCount);
+        Order.Record[] memory resultOrders = new Order.Record[](resultCount);
         for (uint i = 0; i < resultCount; ++i) {
             resultOrders[i] = tempOrders[i];
         }
@@ -211,14 +203,14 @@ contract BeeSmartLens {
         address wallet,
         uint256 itemCount,
         uint256 updatedAfter
-    ) public view returns(Order[] memory) {
+    ) public view returns(Order.Record[] memory) {
         uint256 length = smart.getLengthOfBuyOrders(wallet);
-        Order[] memory tempOrders = new Order[](length);
+        Order.Record[] memory tempOrders = new Order.Record[](length);
 
         uint256 j;
         for (uint256 i = length; i>= 1; --i) {
             uint256 orderId =  smart.buyOrdersOfUser(wallet, i - 1);
-            Order memory ord = smart.orders(orderId);
+            Order.Record memory ord = smart.orders(orderId);
             if (ord.updatedAt > updatedAfter) {
                 tempOrders[j] = ord;
                 ++j;
@@ -226,7 +218,7 @@ contract BeeSmartLens {
         }
 
         uint resultCount = itemCount > j ? j : itemCount;
-        Order[] memory resultOrders = new Order[](resultCount);
+        Order.Record[] memory resultOrders = new Order.Record[](resultCount);
         for (uint i = 0; i < resultCount; ++i) {
             resultOrders[i] = tempOrders[i];
         }
@@ -266,7 +258,7 @@ contract BeeSmartLens {
             assetsBalance: new AssetBalance[](tradableTokens.length)
         });
 
-        info.rebateAmount = smart.rebateRewards(relationId);
+        info.rebateAmount = smart.rebateCandyRewards(relationId);
 
         for (uint i = 0; i < tradableTokens.length; ++i) {
             address token = tradableTokens[i];
