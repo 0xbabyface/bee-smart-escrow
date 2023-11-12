@@ -109,9 +109,14 @@ describe("BeeSmart", async function () {
     return cr * sellAmount / Precision;
   }
 
+  async function totalCandyRewards(smart: BeeSmart, sellAmount: bigint) {
+    const cr = await smart.rewardExchangeRatio();
+    return cr * sellAmount / Precision;
+  }
+
   async function rebateFee(smart: BeeSmart, sellAmount: bigint) {
     const cr = await smart.rebateRatio();
-    return await communityFee(smart, sellAmount) * cr / Precision;
+    return await totalCandyRewards(smart, sellAmount) * cr / Precision;
   }
 
   async function buyerFee(smart: BeeSmart, sellAmount: bigint) {
@@ -126,12 +131,16 @@ describe("BeeSmart", async function () {
 
   async function buyerRewards(smart: BeeSmart, sellAmount: bigint) {
     const r = await smart.rewardForBuyerRatio();
-    return sellAmount * r / Precision;
+    const total = await totalCandyRewards(smart, sellAmount);
+    const rebate = await rebateFee(smart, sellAmount);
+    return (total - rebate) * r / Precision;
   }
 
   async function sellerRewards(smart: BeeSmart, sellAmount: bigint) {
     const r = await smart.rewardForSellerRatio();
-    return sellAmount * r / Precision;
+    const total = await totalCandyRewards(smart, sellAmount);
+    const rebate = await rebateFee(smart, sellAmount);
+    return (total - rebate) * r / Precision;
   }
 
   async function reputationRewards(smart: BeeSmart, sellAmount: bigint) {
@@ -168,13 +177,15 @@ describe("BeeSmart", async function () {
       const sellerRelationId = await Relationship.getRelationId(seller.address);
       const buyerRelationId = await Relationship.getRelationId(buyer.address);
 
+      const communityBalanceBefore = await USDT.balanceOf(communityWallet);
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
       const buyerBalanceBefore = await USDT.balanceOf(buyer.address);
       const sellerReputationBefore = await Reputation.reputationPoints(smart.target, sellerRelationId);
       const buyerReputationBefore = await Reputation.reputationPoints(smart.target, buyerRelationId);
-      const communityBalanceBefore = await USDT.balanceOf(communityWallet);
-      const buyerAirdropBefore = await smart.airdropPoints(buyerRelationId);
       const sellerAirdropBefore = await smart.airdropPoints(sellerRelationId);
+      const buyerAirdropBefore = await smart.airdropPoints(buyerRelationId);
+      const sellerCandyBefore = await smart.rebateCandyRewards(sellerRelationId);
+      const buyerCandyBefore = await smart.rebateCandyRewards(buyerRelationId);
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -227,19 +238,22 @@ describe("BeeSmart", async function () {
       const buyerReputationAfter = await Reputation.reputationPoints(smart.target, buyerRelationId);
       const buyerAirdropAfter = await smart.airdropPoints(buyerRelationId);
       const sellerAirdropAfter = await smart.airdropPoints(sellerRelationId);
+      const sellerCandyAfter = await smart.rebateCandyRewards(sellerRelationId);
+      const buyerCandyAfter = await smart.rebateCandyRewards(buyerRelationId);
 
       const communityF = await communityFee(smart, sellAmount);
-      const rebateF = await rebateFee(smart, sellAmount);
       // to check balance of sell, buyer, community wallet
       expect(sellerBalanceBefore - sellerBalanceAfter).to.equal(sellAmount + await sellerFee(smart, sellAmount));
       expect(buyerBalanceAfter - buyerBalanceBefore).to.equal(sellAmount - await buyerFee(smart, sellAmount));
-      expect(communityBalanceAfter - communityBalanceBefore).to.equal(communityF - rebateF);
+      expect(communityBalanceAfter - communityBalanceBefore).to.equal(communityF);
       expect(sellerReputationAfter - sellerReputationBefore).to.equal(await reputationRewards(smart, sellAmount));
       expect(buyerReputationAfter - buyerReputationBefore).to.equal(await reputationRewards(smart, sellAmount));
       expect(sellerAirdropAfter - sellerAirdropBefore).to.equal(await airdropRewards(smart, sellAmount));
       expect(buyerAirdropAfter - buyerAirdropBefore).to.equal(await airdropRewards(smart, sellAmount));
-
+      expect(sellerCandyAfter - sellerCandyBefore).to.equal(await sellerRewards(smart, sellAmount));
+      expect(buyerCandyAfter - buyerCandyBefore).to.equal(await buyerRewards(smart, sellAmount));
       // TODO: to check rebates for upper agents
+      const rebateF = await rebateFee(smart, sellAmount);
     });
 
     it("make and adjust order", async function () {
@@ -550,7 +564,5 @@ describe("BeeSmart", async function () {
       expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
       expect(order[9]).to.equal(0n);
     });
-
   });
-
 });

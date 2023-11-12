@@ -36,12 +36,11 @@ contract BeeSmartStorage {
     mapping(address => uint256[]) public buyOrdersOfUser;
 
     // relationId => rebate (for CANDY)
-    mapping(uint256 => uint256) public rebateRewards;
+    mapping(uint256 => uint256) public rebateCandyRewards;
     // relationId => airdrop points
     mapping(uint256 => uint256) public airdropPoints;
 
     uint8         public initialized;
-    uint64        public orderStatusDurationSec = 30 * 60; // 30 minutes
 
     IRelationship public relationship;
     IReputation   public reputation;
@@ -51,15 +50,14 @@ contract BeeSmartStorage {
     address       public communityWallet;
     address       public financialWallet;
 
+    uint64        public orderStatusDurationSec = 30 * 60; // 30 minutes waiting for order status
     uint256       public communityFeeRatio = 0.03E18;  // fee ratio: 0.3%
     uint256       public chargesBaredBuyerRatio = 1E18;  // 100% buyer fee ratio
     uint256       public chargesBaredSellerRatio = 0;  // 0% seller fee ratio
-
     uint256       public rewardForBuyerRatio = 0.03E18;  // reward for buyer
     uint256       public rewardForSellerRatio = 0.03E18;  // reward for seller
-
     uint256       public reputationRatio = 1E18; // reputation points ratio:  tradeAmount * reputationRatio = Points
-
     uint256       public rebateRatio = 0.1E18;  // 10% of community fee will rebate to parents
+    uint256       public rewardExchangeRatio = 100e18;  // exchange ratio for 1 USDT = 100 CANDY as default
 
 }
