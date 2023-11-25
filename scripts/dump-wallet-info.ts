@@ -46,7 +46,7 @@ async function main() {
   console.log(`
       relationId:      ${userInfo[0]}
       airdropCount:    ${userInfo[1]}
-      reputationCount: ${userInfo[2]}
+      reputationCount: ${ethers.formatEther(userInfo[2])}
       totalTrades:     ${userInfo[3]}
       rebateAmount:    ${userInfo[4]}
   `);

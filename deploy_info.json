@@ -12,13 +12,13 @@
     },
 
     "mumbai": {
-        "Candy":          "0x9eD0584c66D00a260DeF91b3Aa0da82a405b9718",
-        "Reputation":     "0x4b2A8F00916458840F7A22aCc444c00049eb03BD",
-        "Relationship":   "0xdc44F75A9F795b2413c06d3eA622A8c3B4679B71",
-        "Rebate":         "0x95Df26b577e6806F5b6880d934751e4A25E8d0c4",
-        "BeeSmart":       "0xb73D1fCa056c6FbF15100c0eb2BCFEF356DAA8D4",
-        "BeeSmartProxy":  "0xEcb597404045981ccd037eEC70d665b3BcC7aEAc",
-        "BeeSmartLens":   "0xEA1225af54D1a9e8D33763c715e1D4406bdDEC58",
+        "Candy":          "0x4621249fE360256992D504FDe9b35c801a17012e",
+        "Reputation":     "0x1E9a77629159e7E619A3b38f9e8Cf0B6F8F04Ece",
+        "Relationship":   "0xD13C3Fc05319E14e5860CaF7699A89D2F8067f23",
+        "Rebate":         "0x8403D5021C9009FF8D4496fd31c4C52946fFd1B4",
+        "BeeSmart":       "0xF489d1192a5216D5A8D5E1b4728a4eae608aF7B1",
+        "BeeSmartProxy":  "0x597482e79eAfdEA930391230c962f21F422fb69B",
+        "BeeSmartLens":   "0x570B887e40D81E868Cac45243B63F86E0490B143",
         "TestUSDT":       "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
         "TestUSDC":       "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
     }

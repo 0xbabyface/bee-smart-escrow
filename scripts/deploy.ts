@@ -47,14 +47,19 @@ async function main() {
 
   await smart.setOrderStatusDurationSec(30 * 60);  // order wait for 30 minutes then can disputing
   await smart.setCommunityWallet(owner.address);
+  await smart.setFinancialWallet(owner.address);
+  await smart.setRewardToken(Candy.target);
 
   await Candy.setMinter(BeeSmartProxy.target, true);
 
-  const USDT = await ethers.deployContract("TestUSDT");
-  await USDT.waitForDeployment();
+  // const USDT = await ethers.deployContract("TestUSDT");
+  // await USDT.waitForDeployment();
 
-  const USDC = await ethers.deployContract("TestUSDC");
-  await USDC.waitForDeployment();
+  // const USDC = await ethers.deployContract("TestUSDC");
+  // await USDC.waitForDeployment();
+  const USDT = {target: "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1"}
+  const USDC = {target: "0x1c2D7E574F25E5D31E802763127016C5aD66260C"}
+
 
   // add support tokens
   await smart.addSupportTokens([USDT.target, USDC.target, Candy.target]);

@@ -261,8 +261,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function confirmOrder(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
 
-        require(order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED, "order status mismatch");
         require(order.seller == msg.sender, "only seller allowed");
+        require(order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED, "order status mismatch");
 
         order.toStatus(Order.Status.CONFIRMED);
 
@@ -316,14 +316,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function sellerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
         require(order.seller == msg.sender, "only seller allowed");
+        require(order.currStatus == Order.Status.SELLERDISPUTE, "can not recall");
 
-        if (order.currStatus == Order.Status.SELLERDISPUTE) {
-            order.toStatus(Order.Status.NORMAL);
-        } else {
-            require(false, "seller can not recall now");
-        }
+        order.toStatus(Order.Status.NORMAL);
 
-       emit OrderDisputeRecalled(orderId, msg.sender);
+        emit OrderDisputeRecalled(orderId, msg.sender);
     }
 
     // buyer wants to dispute
@@ -357,12 +354,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function buyerRecallDispute(uint256 orderId) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
         require(order.buyer == msg.sender, "only buyer allowed");
+        require(order.currStatus == Order.Status.BUYERDISPUTE, "can not recall");
 
-        if (order.currStatus == Order.Status.BUYERDISPUTE) {
-            order.toStatus(Order.Status.NORMAL);
-        } else {
-            require(false, "buyer can not recall now");
-        }
+        order.toStatus(Order.Status.NORMAL);
 
        emit OrderDisputeRecalled(orderId, msg.sender);
     }
