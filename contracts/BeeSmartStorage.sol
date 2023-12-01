@@ -40,7 +40,7 @@ contract BeeSmartStorage {
     // relationId => airdrop points
     mapping(uint256 => uint256) public airdropPoints;
 
-    uint8         public initialized;
+    uint8         public initialized = 1;
 
     IRelationship public relationship;
     IReputation   public reputation;

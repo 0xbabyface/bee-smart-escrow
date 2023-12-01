@@ -28,7 +28,12 @@ contract BeeSmartLens {
         view
         returns(Order.Record[] memory)
     {
-        uint256 length = smart.getLengthOfSellOrders(wallet);
+        uint256 length;
+
+        if (fType == FilterType.SellOngoing)
+            length = smart.getLengthOfSellOrders(wallet);
+        else
+            length = smart.getLengthOfBuyOrders(wallet);
 
         uint256[] memory hashes = new uint256[](length);
         uint count;
@@ -60,7 +65,12 @@ contract BeeSmartLens {
         view
         returns(Order.Record[] memory, Order.Rewards[] memory)
     {
-        uint256 length = smart.getLengthOfSellOrders(wallet);
+        uint256 length;
+
+        if (fType == FilterType.SellHistory)
+            length = smart.getLengthOfSellOrders(wallet);
+        else
+            length = smart.getLengthOfBuyOrders(wallet);
 
         uint256[] memory hashes = new uint256[](length);
         uint count;
