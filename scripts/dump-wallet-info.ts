@@ -26,8 +26,9 @@ async function tokenSymbol(addr: string) {
 
 async function main() {
   // const [seller, buyer] = await ethers.getSigners() ;
-  const seller = {address: "0xbB2Da3f198f7f5aC4082e0f8ADF47d58FF93F604"} // enpeng
+  // const seller = {address: "0xbB2Da3f198f7f5aC4082e0f8ADF47d58FF93F604"} // enpeng
   // const seller = {address: "0x81bD01D0A9E8e8E40FAf22B779Bb21BaFbf8f7AC"}
+  const seller = {address: "0xd8104BF3A618E681A995f1B67C0fa24A04fA3C8F"} // fan2
   const lens = await ethers.getContractAt("BeeSmartLens", contracts.BeeSmartLens);
 
   const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);

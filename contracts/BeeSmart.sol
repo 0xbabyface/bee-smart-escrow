@@ -7,6 +7,7 @@ import "./BeeSmartStorage.sol";
 
 contract BeeSmart is AccessControl, BeeSmartStorage {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.UintSet;
     using Order for Order.Record;
 
     bytes32 public constant AdminRole     = keccak256("BeeSmart.Admin");
@@ -196,6 +197,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function makeOrder(address payToken, uint256 sellAmount, address buyer) external {
         require(supportedTokens.contains(payToken), "token not support");
         require(sellAmount > 0, "sell amount is zero");
+        require(userLockedOrders[msg.sender].length() == 0, "seller has locked order");
+        require(userLockedOrders[buyer].length() == 0, "buyer has locked order");
 
         uint256 buyerId = relationship.getRelationId(buyer);
         uint256 sellerId = relationship.getRelationId(msg.sender);
@@ -305,6 +308,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
             order.toStatus(Order.Status.LOCKED);
+            lockedOrders.add(order.orderId);
+            userLockedOrders[order.buyer].add(orderId);
+            userLockedOrders[order.seller].add(orderId);
         } else {
             require(false, "seller can not dispute now");
         }
@@ -343,6 +349,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
             order.toStatus(Order.Status.LOCKED);
+            lockedOrders.add(order.orderId);
+            userLockedOrders[order.buyer].add(orderId);
+            userLockedOrders[order.seller].add(orderId);
         } else {
             require(false, "buyer can not dispute now");
         }
@@ -387,6 +396,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             order.toStatus(Order.Status.NORMAL);
         }
 
+        lockedOrders.remove(orderId);
+        userLockedOrders[order.buyer].remove(orderId);
+        userLockedOrders[order.seller].remove(orderId);
+
         emit CommunityDecided(orderId, msg.sender, decision);
     }
 
@@ -400,12 +413,15 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     function getSupportTokens() public view returns(address[] memory) {
-        uint length = supportedTokens.length();
-        address[] memory tokens = new address[](length);
-        for (uint i = 0; i < length; ++i) {
-            tokens[i] = supportedTokens.at(i);
-        }
-        return tokens;
+        return supportedTokens.values();
+    }
+
+    function getAllLockedOrderIds() public view returns(uint256[] memory) {
+        return lockedOrders.values();
+    }
+
+    function getUserLockedOrderIds(address user) public view returns(uint256[] memory) {
+        return userLockedOrders[user].values();
     }
 
 // --------------------- internal functions -------------------------------

@@ -318,7 +318,7 @@ describe("BeeSmart", async function () {
       await forwardBlockTimestamp(20 * 60); // forward 20minutes
       await expect(smart.connect(buyer).sellerDispute(orderId)).to.revertedWith("only seller allowed");
 
-      await expect(smart.connect(seller).sellerRecallDispute(orderId)).to.revertedWith("seller can not recall now");
+      await expect(smart.connect(seller).sellerRecallDispute(orderId)).to.revertedWith("can not recall");
 
       await smart.connect(seller).sellerDispute(orderId);
 
@@ -354,7 +354,7 @@ describe("BeeSmart", async function () {
       await forwardBlockTimestamp(20 * 60); // forward 20minutes
       await expect(smart.connect(seller).buyerDispute(orderId)).to.revertedWith("only buyer allowed");
 
-      await expect(smart.connect(buyer).buyerRecallDispute(orderId)).to.revertedWith("buyer can not recall now");
+      await expect(smart.connect(buyer).buyerRecallDispute(orderId)).to.revertedWith("can not recall");
 
       await smart.connect(buyer).buyerDispute(orderId);
 
@@ -561,6 +561,33 @@ describe("BeeSmart", async function () {
       expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
       expect(order[6]).to.equal(Status.NORMAL);
       expect(order[7]).to.equal(Status.LOCKED);
+      expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
+      expect(order[9]).to.equal(0n);
+    });
+
+    it("new order while locked orders in progress", async function () {
+      const { smart, seller, buyer, communitier, USDT, Reputation, Relationship } = await loadFixture(deployBeeSmarts);
+
+      const sellAmount = ethers.parseEther("180");
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const orderId = await smart.totalOrdersCount();
+
+      await forwardBlockTimestamp(30 * 60 + 1);
+      await smart.connect(buyer).buyerDispute(orderId);
+      await smart.connect(seller).sellerDispute(orderId);
+      // can not make new order while locked order in progress
+      await expect(smart.connect(seller).makeOrder(USDT.target, sellAmount, communitier.address)).to.rejectedWith("seller has locked order")
+      await expect(smart.connect(communitier).makeOrder(USDT.target, sellAmount, buyer.address)).to.rejectedWith("buyer has locked order")
+
+      await smart.connect(communitier).communityDecide(orderId, 2);
+      // community decide the locked order, can make new order again
+      await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+      const newOrderId = await smart.totalOrdersCount();
+      let order = await smart.orders(newOrderId);
+      expect(order[1]).to.equal(sellAmount);
+      expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
+      expect(order[6]).to.equal(Status.NORMAL);
+      expect(order[7]).to.equal(Status.UNKNOWN);
       expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
       expect(order[9]).to.equal(0n);
     });

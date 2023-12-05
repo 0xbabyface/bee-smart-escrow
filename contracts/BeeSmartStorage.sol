@@ -60,4 +60,6 @@ contract BeeSmartStorage {
     uint256       public rebateRatio = 0.1E18;  // 10% of community fee will rebate to parents
     uint256       public rewardExchangeRatio = 100e18;  // exchange ratio for 1 USDT = 100 CANDY as default
 
+    EnumerableSet.UintSet lockedOrders;  // all locked orders
+    mapping(address => EnumerableSet.UintSet) userLockedOrders;
 }
