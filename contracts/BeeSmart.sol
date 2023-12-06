@@ -53,8 +53,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         communityFeeRatio        = 0.03E18;  // fee ratio: 3%
         chargesBaredBuyerRatio   = 1E18;     // 100% buyer fee ratio
         chargesBaredSellerRatio  = 0;        // 0% seller fee ratio
-        rewardForBuyerRatio      = 0.03E18;  // reward for buyer
-        rewardForSellerRatio     = 0.03E18;  // reward for seller
+        rewardForBuyerRatio      = 0.7E18;  // reward for buyer
+        rewardForSellerRatio     = 0.3E18;  // reward for seller
         reputationRatio          = 1E18;     // reputation points ratio:  tradeAmount * reputationRatio = Points
         rebateRatio              = 0.1E18;   // 10% of community fee will rebate to parents
         rewardExchangeRatio      = 100e18;   // 1USDT for 100CANDY rewards
@@ -64,9 +64,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(token != address(0), "token is null");
         require(token != rewardTokenAddress, "same token address");
 
-        address oldWallet = rewardTokenAddress;
+        address oldTokenAddress = rewardTokenAddress;
         rewardTokenAddress = token;
-        emit RewardTokenSet(msg.sender, oldWallet, token);
+        emit RewardTokenSet(msg.sender, oldTokenAddress, token);
     }
     // set community wallet
     function setCommunityWallet(address w) external onlyRole(AdminRole) {
@@ -99,8 +99,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     // set reward fee ratio for buyer & seller
     function setRewardFeeRatio(uint256 rewardForBuyer, uint256 rewardForSeller) external onlyRole(AdminRole) {
-        require(0 <= rewardForBuyer && rewardForBuyer <= 1E18, "buyer reward ratio invalid");
-        require(0 <= rewardForSeller && rewardForSeller <= 1E18, "seller reward ratio invalid");
+        require(0 <= rewardForBuyer && rewardForBuyer <= RatioPrecision, "buyer reward ratio invalid");
+        require(0 <= rewardForSeller && rewardForSeller <= RatioPrecision, "seller reward ratio invalid");
+        require(rewardForBuyer + rewardForSeller == RatioPrecision, "reward ratio not percent 100");
 
         rewardForBuyerRatio = rewardForBuyer;
         rewardForSellerRatio = rewardForSeller;

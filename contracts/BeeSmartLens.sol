@@ -18,6 +18,8 @@ interface IBeeSmart {
     function airdropPoints(uint256) external view returns(uint256);
     function getSupportTokens() external view returns(address[] memory);
     function rebateCandyRewards(uint256) external view returns(uint256);
+    function getAllLockedOrderIds() external view returns(uint256[] memory);
+    function getUserLockedOrderIds(address user) external view returns(uint256[] memory);
 }
 
 enum FilterType { SellOngoing, BuyOngoing, SellHistory, BuyHistory}
@@ -277,5 +279,15 @@ contract BeeSmartLens {
         }
 
         return info;
+    }
+
+    // API for manage functions
+    function getAllLockedOrders(IBeeSmart smart) public view returns(Order.Record[] memory) {
+        uint256[] memory orderIds = smart.getAllLockedOrderIds();
+        Order.Record[] memory orders = new Order.Record[](orderIds.length);
+        for (uint i; i < orderIds.length; ++i) {
+            orders[i] = smart.orders(orderIds[i]);
+        }
+        return orders;
     }
 }
