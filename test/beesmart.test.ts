@@ -59,8 +59,8 @@ describe("BeeSmart", async function () {
     );
 
     await smart.setRewardFeeRatio(
-      ethers.parseEther("0.03"),  // reward ratio for buyer
-      ethers.parseEther("0.03")   // reward ratio for seller
+      ethers.parseEther("0.3"),  // reward ratio for buyer
+      ethers.parseEther("0.7")   // reward ratio for seller
     );
 
     await smart.setReputationRatio(ethers.parseEther("1.0"));  //  1 : 1 for candy
@@ -268,16 +268,16 @@ describe("BeeSmart", async function () {
 
       await smart.connect(buyer).adjustOrder(orderId, adjustAmount);
       let order = await smart.orders(orderId);
-      expect(order[1]).to.equal(sellAmount - adjustAmount);
+      expect(order[1]).to.equal(adjustAmount);
       expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
       expect(order[6]).to.equal(Status.ADJUSTED);
       expect(order[7]).to.equal(Status.NORMAL);
-      expect(order[8]).to.equal(await sellerFee(smart, sellAmount - adjustAmount));
+      expect(order[8]).to.equal(await sellerFee(smart, adjustAmount));
       expect(order[9]).to.equal(0n);
 
       let adjustInfo = await smart.adjustedOrder(orderId);
       expect(adjustInfo[0]).to.equal(sellAmount);
-      expect(adjustInfo[1]).to.equal(sellAmount - adjustAmount);
+      expect(adjustInfo[1]).to.equal(adjustAmount);
     });
 
     it("make and adjust to cancel order", async function () {
@@ -291,7 +291,7 @@ describe("BeeSmart", async function () {
       expect(sellerBalanceBefore - sellerBalance).to.equal(sellAmount + await sellerFee(smart, sellAmount));
 
       const orderId = await smart.totalOrdersCount();
-      const adjustAmount = sellAmount;
+      const adjustAmount = 0n;
 
       await smart.connect(buyer).adjustOrder(orderId, adjustAmount);
       let order = await smart.orders(orderId);
@@ -299,7 +299,7 @@ describe("BeeSmart", async function () {
       expect(order[3]).to.equal((await ethers.provider.getBlock('latest'))!.timestamp);
       expect(order[6]).to.equal(Status.CANCELLED);
       expect(order[7]).to.equal(Status.NORMAL);
-      expect(order[8]).to.equal(await sellerFee(smart, sellAmount - adjustAmount));
+      expect(order[8]).to.equal(await sellerFee(smart, adjustAmount));
       expect(order[9]).to.equal(0n);
 
       const sellerBalanceAfter = await USDT.balanceOf(seller.address);

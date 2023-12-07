@@ -26,6 +26,7 @@ library Order {
         Status  prevStatus;
         uint256 sellerFee;
         uint256 buyerFee;
+        uint64  createdAt;
     }
 
     struct Rewards {

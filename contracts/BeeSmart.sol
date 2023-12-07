@@ -57,7 +57,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rewardForSellerRatio     = 0.3E18;  // reward for seller
         reputationRatio          = 1E18;     // reputation points ratio:  tradeAmount * reputationRatio = Points
         rebateRatio              = 0.1E18;   // 10% of community fee will rebate to parents
-        rewardExchangeRatio      = 100e18;   // 1USDT for 100CANDY rewards
+        rewardExchangeRatio      = 1e18;   // 1USDT for 100CANDY rewards
     }
     // set reward token, should be decimals 18.
     function setRewardToken(address token) external onlyRole(AdminRole) {
@@ -226,7 +226,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
                                 Order.Status.NORMAL,
                                 Order.Status.UNKNOWN,
                                 sellerFee,
-                                0
+                                0,
+                                uint64(block.timestamp)
         );
         sellOrdersOfUser[msg.sender].push(orderId);
         buyOrdersOfUser[buyer].push(orderId);
@@ -235,30 +236,30 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     // buyer want to adjust amount of order
-    function adjustOrder(uint256 orderId, uint256 amount) external onlyExistOrder(orderId) {
+    function adjustOrder(uint256 orderId, uint256 targetAmount) external onlyExistOrder(orderId) {
         Order.Record storage order = orders[orderId];
 
         require(order.currStatus == Order.Status.NORMAL || order.currStatus == Order.Status.ADJUSTED, "order status mismatch");
         require(order.buyer == msg.sender, "only buyer allowed");
-        require(order.sellAmount >= amount, "amount overflow");
+        require(order.sellAmount > targetAmount, "amount should less than now");
 
-        uint256 rebateFee = amount * order.sellerFee / order.sellAmount; // rebate sell fee by ratio
+        uint256 rebateFee = (order.sellAmount - targetAmount) * order.sellerFee / order.sellAmount; // rebate sell fee by ratio
         if (rebateFee > 0) order.sellerFee -= rebateFee;
 
-        if (order.sellAmount == amount) {
+        if (targetAmount == 0) {
             order.toStatus(Order.Status.CANCELLED);
             emit OrderCancelled(orderId, order.seller, order.buyer);
         } else {
             order.toStatus(Order.Status.ADJUSTED);
 
             uint256 preAmount = order.sellAmount;
-            order.sellAmount -= amount;
-            adjustedOrder[orderId] = Order.AdjustInfo(preAmount, order.sellAmount);
+            order.sellAmount = targetAmount;
+            adjustedOrder[orderId] = Order.AdjustInfo(preAmount, targetAmount);
 
             emit OrderAdjusted(orderId, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
-        IERC20Metadata(order.payToken).transfer(order.seller, amount + rebateFee);
+        IERC20Metadata(order.payToken).transfer(order.seller, (order.sellAmount - targetAmount) + rebateFee);
     }
 
     // seller confirmed and want to finish an order.
