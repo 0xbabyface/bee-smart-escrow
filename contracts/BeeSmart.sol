@@ -272,11 +272,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         order.toStatus(Order.Status.CONFIRMED);
 
         // S1: rewards for agents, buyer, seller
-        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
-        uint256 totalCandyRewards = alignedAmount * rewardExchangeRatio / RatioPrecision;
-        uint256 rewardsForAgents  = totalCandyRewards * rebateRatio / RatioPrecision;
-        rewardForAgents(order.seller, rewardsForAgents);
-        rewardForBuyerAndSeller(order, totalCandyRewards -rewardsForAgents);
+        (uint256 candyForAgents, uint256 candyForDealer, uint256 points) = calculateOrderRewards(order);
+        dispatchRewardsToAgents(order.seller, candyForAgents);
+        dispatchRewardsToBuyer(order, points, candyForDealer);
+        dispatchRewardsToSeller(order, points, candyForDealer);
 
         // S2: charege fee for community
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
@@ -346,7 +345,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // charge community fee from this order,
             // but no reputation nor CANDY granted
             order.toStatus(Order.Status.CONFIRMED);
+
             releaseToBuyer(order);
+
+            (, uint256 candyForDealer, uint256 points) = calculateOrderRewards(order);
+            dispatchRewardsToBuyer(order, points, candyForDealer);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
@@ -450,7 +453,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputation.takeback(relationId, points);
     }
 
-    function rewardForAgents(address seller, uint256 fee)
+    function dispatchRewardsToAgents(address seller, uint256 fee)
         internal
         returns(uint256)
     {
@@ -467,32 +470,49 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         return rebateAmount;
     }
 
-    function rewardForBuyerAndSeller(Order.Record memory order, uint256 candyRewards)
-        internal
-    {
-        // S2: calculate reputation points for both seller & buyer.
-        uint256 sellerRelationId = relationship.getRelationId(order.seller);
+    function dispatchRewardsToBuyer(Order.Record memory order, uint256 points, uint256 candyRewards) internal {
         uint256 buyerRelationId = relationship.getRelationId(order.buyer);
-        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
-        uint256 points = alignedAmount * reputationRatio / RatioPrecision;
-        reputation.grant(sellerRelationId, points);
         reputation.grant(buyerRelationId, points);
         // add 1 airdrop point for buyer and seller
-        airdropPoints[sellerRelationId] += 1;
         airdropPoints[buyerRelationId] += 1;
         // S3: calculate CANDY rewards for buyer & seller
         uint256 buyerCandyReward = candyRewards * rewardForBuyerRatio / RatioPrecision;
-        uint256 sellerCandyReward = candyRewards * rewardForSellerRatio / RatioPrecision;
         rebateCandyRewards[buyerRelationId] += buyerCandyReward;
-        rebateCandyRewards[sellerRelationId] += sellerCandyReward;
 
         // S4: record rewards info
         Order.Rewards storage rewards = orderRewards[order.orderId];
         rewards.buyerRewards = uint128(buyerCandyReward);
-        rewards.sellerRewards = uint128(sellerCandyReward);
         rewards.buyerReputation = uint128(points);
-        rewards.sellerReputation = uint128(points);
         rewards.buyerAirdropPoints = uint128(1);
+    }
+
+    function dispatchRewardsToSeller(Order.Record memory order, uint256 points, uint256 candyRewards) internal {
+        uint256 sellerRelationId = relationship.getRelationId(order.seller);
+
+        reputation.grant(sellerRelationId, points);
+
+        airdropPoints[sellerRelationId] += 1;
+
+        uint256 sellerCandyReward = candyRewards * rewardForSellerRatio / RatioPrecision;
+        rebateCandyRewards[sellerRelationId] += sellerCandyReward;
+
+        // S4: record rewards info
+        Order.Rewards storage rewards = orderRewards[order.orderId];
+        rewards.sellerRewards = uint128(sellerCandyReward);
+        rewards.sellerReputation = uint128(points);
         rewards.sellerAirdropPoints = uint128(1);
+    }
+
+    function calculateOrderRewards(Order.Record memory order)
+        internal
+        view
+        returns(uint256 candyForAgents, uint256 candyForDealer, uint256 points)
+    {
+        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
+        uint256 totalCandyRewards = alignedAmount * rewardExchangeRatio / RatioPrecision;
+
+        candyForAgents = totalCandyRewards * rebateRatio / RatioPrecision;
+        candyForDealer = totalCandyRewards - candyForAgents;
+        points = alignedAmount * reputationRatio / RatioPrecision;
     }
 }
