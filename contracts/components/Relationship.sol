@@ -1,149 +1,104 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "./IRelationship.sol";
 
-contract Relationship is ERC721Enumerable {
+contract Relationship is IRelationship {
     using EnumerableSet for EnumerableSet.UintSet;
     using EnumerableSet for EnumerableSet.AddressSet;
+
+    struct R {
+        uint256               parentId;
+        address               wallet;
+        EnumerableSet.UintSet sonsId;
+    }
 
     uint256 public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
-    // idRelations about relationId, its parent id stored at index 0.
-    // RelationId => [RelationId]
-    mapping(uint256 => EnumerableSet.UintSet) idRelations;
-    // bind wallet and relationId
-    // RelationId => [address]
-    mapping(uint256 => EnumerableSet.AddressSet) idToWallets;
+    // RelationId => R
+    mapping(uint256 => R) idRelations;
     // reverse bind from wallet to reputstionId
     // address => RelationId
     mapping(address => uint256) walletsToId;
-    // which wallet used to receive benefit
-    // relationId => address
-    mapping(uint256 => address) beneficialWallets;
 
-    error ParentExist(uint256 existParent, uint256 targetParent);
-    error SonExist(uint256 parentId, uint256 sonId);
-    error WalletHadBound(uint256 relationId);
+    uint256 public totalSupply;
+
+    address public beeSmart;
 
     event RelationBound(
         uint256 indexed parentId,
-        uint256 indexed sonId,
-        address indexed sonWallet
+        uint256 indexed myId,
+        address indexed myWallet
     );
 
-    event BeneficialSet(
-        uint256 indexed relationId,
-        address indexed oldBeneficial,
-        address indexed newBeneficial
-    );
-
-    function _bind(
-        uint256 parentId,
-        uint256 sonId,
-        address sonWallet
-    ) internal {
-        // wallet should not be bound
-        require(walletsToId[sonWallet] == 0, "wallet has bouned");
-
-        // if not the first time, parent id and son id should be bound
-        if (idRelations[sonId].length() != 0) {
-            require(idRelations[sonId].at(0) == parentId, "argent relation mismatch");
-        } else {
-            idRelations[sonId].add(parentId);
-            idRelations[parentId].add(sonId);
-        }
-
-        walletsToId[sonWallet] = sonId;
-        idToWallets[sonId].add(sonWallet);
-
-        emit RelationBound(parentId, sonId, sonWallet);
+    modifier onlySmart() {
+        require(msg.sender == beeSmart, "Relationship: only smart");
+        _;
     }
 
-    constructor() ERC721("Bee Smart Relationship", "BSR") {
-        _mint(RootWallet, RootId); // mint RootId to a black hold address
+    constructor(address smart) {
+        beeSmart = smart;
     }
 
-    function nextId() public view returns(uint256) {
-        return RootId + totalSupply();
+    function nextId() internal returns(uint256) {
+        ++totalSupply;
+        return RootId + totalSupply;
     }
 
     // bind the parent and son relationship.
     // if soneId is 0, then we should mint a Relationship NFT for msg.sender at first.
-    function bind(uint256 parendId, uint256 sonId) external {
-        require(ownerOf(parendId) != address(0), "parent id not exist");
-        if (sonId == 0) {
-            require(balanceOf(msg.sender) == 0, "sender had relation id");
-            sonId = nextId();
-            // CAUTION: if msg.sender is a contract, it must make sure who can retrieve tokens from it.
-            beneficialWallets[sonId] = msg.sender;
+    function bind(uint256 parentId, address sonWallet) external onlySmart {
+        require(walletsToId[sonWallet] == 0, "already bound");
+        require(parentId == RootId || idRelations[parentId].parentId != 0, "parent not exist");
 
-            _mint(msg.sender, sonId);
-        } else {
-            require(ownerOf(sonId) != address(0), "son id not exist");
-        }
+        uint256 myId = nextId();
 
-        _bind(parendId, sonId, msg.sender);
-    }
+        R storage r = idRelations[myId];
+        r.parentId = parentId;
+        r.wallet   = sonWallet;
 
-    function setBeneficial(address wallet) external {
-        require(wallet != address(0), "beneficial is 0");
-        uint256 id = walletsToId[msg.sender];
-        address oldBeneficial = beneficialWallets[id];
-        require(oldBeneficial == msg.sender, "only old beneficial allowed");
+        idRelations[parentId].sonsId.add(myId);
 
-        beneficialWallets[id] = wallet;
+        walletsToId[sonWallet] = myId;
 
-        emit BeneficialSet(id, oldBeneficial, wallet);
-    }
-
-    function getBeneficial(address wallet) external view returns(address) {
-        uint256 id = walletsToId[wallet];
-        return beneficialWallets[id];
+        emit RelationBound(parentId, myId, sonWallet);
     }
 
     function getRelationId(address wallet) external view returns(uint256) {
         return walletsToId[wallet];
     }
 
-    function getWallets(uint256 relationId) external view returns(address[] memory) {
-        // CAUTION: would bond too many wallets to enumerate, if happen
-        return idToWallets[relationId].values();
-    }
-
-    //
     function getParentRelationId(address wallet, uint256 level) external view returns(uint256[] memory) {
         uint256[] memory ids = new uint256[](level);
         uint256 relationId = walletsToId[wallet];
         if (relationId == 0 || relationId == RootId) return ids;
 
-        uint256 parendId;
+        uint256 parentId;
         for (uint i = 0; i < level; ++i) {
-            parendId = idRelations[relationId].at(0);
-            if (parendId == RootId) break;
-            ids[i] = parendId;
+            parentId = idRelations[relationId].parentId;
+            if (parentId == RootId) break;
+            ids[i] = parentId;
 
-            relationId = parendId;
+            relationId = parentId;
         }
         return ids;
     }
 
-    function getParentBeneficials(address sonWallet, uint256 level) external view returns(address[] memory) {
+    function getParentWallets(address sonWallet, uint256 level) external view returns(address[] memory) {
         address[] memory wallets = new address[](level);
 
         uint256 relationId = walletsToId[sonWallet];
         if (relationId == 0 || relationId == RootId) return wallets;
 
-        uint256 parendId;
+        uint256 parentId;
         for (uint i = 0; i < level; ++i) {
-            parendId = idRelations[relationId].at(0);
-            if (parendId == RootId) break;
-            wallets[i] = beneficialWallets[parendId];
+            parentId = idRelations[relationId].parentId;
+            if (parentId == RootId) break;
+            wallets[i] = idRelations[parentId].wallet;
 
-            relationId = parendId;
+            relationId = parentId;
         }
         return wallets;
     }

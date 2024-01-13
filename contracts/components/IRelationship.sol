@@ -3,13 +3,11 @@ pragma solidity ^0.8.9;
 
 interface IRelationship {
 
-    function getBeneficial(address wallet) external view returns(address);
+    function bind(uint256 parentId, address sonWallet) external;
 
     function getRelationId(address wallet) external view returns(uint256);
 
-    function getWallets(uint256 relationId) external view returns(address[] memory) ;
-
     function getParentRelationId(address wallet, uint256 level) external view returns(uint256[] memory);
 
-    function getParentBeneficials(address sonWallet, uint256 level) external view returns(address[] memory);
+    function getParentWallets(address sonWallet, uint256 level) external view returns(address[] memory);
 }
