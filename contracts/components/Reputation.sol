@@ -3,16 +3,23 @@ pragma solidity ^0.8.9;
 
 contract Reputation {
 
-    uint256 public constant InitReputationPoints = 500e18;
-    // issuer => relationId => amount
-    mapping(address => mapping(uint256 => uint256)) _reputationPoints;
-    // issuer => relationId => bool
-    mapping(address => mapping(uint256 => bool)) public relationInitialized;
+    uint256 public constant InitReputationPoints = 5000e18;
+    // holder => amount
+    mapping(address => uint256) reputationPoints;
 
-    event ReputationGranted(address indexed issuer, uint256 indexed relationId, uint256 amount);
-    event ReputationTookback(address indexed issuer, uint256 indexed relationId, uint256 amount);
+    address public beeSmart;
 
-    constructor() {}
+    event ReputationGranted(address indexed holder, uint256 amount);
+    event ReputationTookback(address indexed holder, uint256 amount);
+
+    modifier onlyBeeSmart() {
+        require(msg.sender == beeSmart, "Reputation: only beesmart");
+        _;
+    }
+
+    constructor(address smart) {
+        beeSmart = smart;
+    }
 
     function name() external pure returns(string memory) {
         return "Bee Smart Repulation Points";
@@ -22,33 +29,22 @@ contract Reputation {
         return "BSRP";
     }
 
-    function reputationPoints(address issuer, uint256 relationId) external view returns(uint256) {
-        return relationInitialized[issuer][relationId]
-               ? _reputationPoints[issuer][relationId]
-               : InitReputationPoints;
+    function onRelationBound(address holder) external onlyBeeSmart {
+        reputationPoints[holder] = InitReputationPoints;
     }
 
-    function isReputationEnough(uint256 relationId, uint256 amount) external returns(bool) {
-        if (!relationInitialized[msg.sender][relationId]) {
-            relationInitialized[msg.sender][relationId] = true;
-            _reputationPoints[msg.sender][relationId] = InitReputationPoints;
-        }
-
-        return _reputationPoints[msg.sender][relationId] >= amount;
+    function grant(address holder, uint256 amount) external onlyBeeSmart() {
+        reputationPoints[holder] += amount;
+        emit ReputationGranted(holder, amount);
     }
 
-    function grant(uint256 relationId, uint256 amount) external {
-        _reputationPoints[msg.sender][relationId] += amount;
-        emit ReputationGranted(msg.sender, relationId, amount);
-    }
-
-    function takeback(uint256 relationId, uint256 amount) external {
-        if (_reputationPoints[msg.sender][relationId] >= amount ) {
-            _reputationPoints[msg.sender][relationId] -= amount;
+    function takeback(address holder, uint256 amount) external onlyBeeSmart {
+        if (reputationPoints[holder] >= amount ) {
+            reputationPoints[holder] -= amount;
         } else {
-            _reputationPoints[msg.sender][relationId] = 0;
+            reputationPoints[holder] = 0;
         }
 
-        emit ReputationTookback(msg.sender, relationId, amount);
+        emit ReputationTookback(holder, amount);
     }
 }
