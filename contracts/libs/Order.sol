@@ -30,8 +30,6 @@ library Order {
     }
 
     struct Rewards {
-        uint128 buyerRewards;
-        uint128 sellerRewards;
         uint128 buyerAirdropPoints;
         uint128 sellerAirdropPoints;
         uint128 buyerReputation;

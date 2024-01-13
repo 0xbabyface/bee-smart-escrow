@@ -56,18 +56,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         rewardForBuyerRatio      = 0.7E18;  // reward for buyer
         rewardForSellerRatio     = 0.3E18;  // reward for seller
         reputationRatio          = 1E18;     // reputation points ratio:  tradeAmount * reputationRatio = Points
-        rebateRatio              = 0.1E18;   // 10% of community fee will rebate to parents
-        rewardExchangeRatio      = 1e18;   // 1USDT for 100CANDY rewards
     }
-    // set reward token, should be decimals 18.
-    function setRewardToken(address token) external onlyRole(AdminRole) {
-        require(token != address(0), "token is null");
-        require(token != rewardTokenAddress, "same token address");
 
-        address oldTokenAddress = rewardTokenAddress;
-        rewardTokenAddress = token;
-        emit RewardTokenSet(msg.sender, oldTokenAddress, token);
-    }
     // set community wallet
     function setCommunityWallet(address w) external onlyRole(AdminRole) {
         require(w != address(0), "wallet is null");
@@ -77,14 +67,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         communityWallet = w;
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
-    // set financial wallet
-    function setFinancialWallet(address fw) external onlyRole(AdminRole) {
-        require(fw != address(0), "wallet is null");
-        require(fw != financialWallet, "same wallet");
-        address oldWallet = financialWallet;
-        financialWallet = fw;
-        emit CommunityWalletSet(msg.sender, oldWallet, fw);
-    }
+
     // set community fee ratio
     function setCommunityFeeRatio(uint256 r, uint256 buyerChargedRatio, uint256 sellerChargedRatio) external onlyRole(AdminRole) {
         require(0 <= r && r <= 1E18, "fee ratio invalid");
@@ -126,21 +109,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputationRatio = r;
         emit ReputationRatioSet(msg.sender, oldRatio, r);
     }
-    // set rebate fee ratio for upper argents
-    function setRebateRatio(uint256 r) external onlyRole(AdminRole) {
-        require(0 <= r && r <= 1E18, "fee ratio invalid");
-        uint256 oldRatio = rebateRatio;
-        rebateRatio = r;
-        emit RebateRatioSet(msg.sender, oldRatio, r);
-    }
 
-    // set exchange rate for 1 usdt/usdc : x CANDY
-    function setExchangeRatio(uint256 r) external onlyRole(AdminRole) {
-        // require(0 <= r && r <= 1E18, "fee ratio invalid");
-        uint256 oldRatio = rewardExchangeRatio;
-        rewardExchangeRatio = r;
-        emit ExchangeRatioSet(msg.sender, oldRatio, r);
-    }
     // add tradable tokens
     function addSupportTokens(address[] memory tokens) external onlyRole(AdminRole) {
         for (uint i = 0; i < tokens.length; ++i) {
@@ -171,12 +140,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit ReputationSet(address(rep));
     }
 
-    function setRebate(IRebate reb) external onlyRole(AdminRole) {
-        require(address(reb).code.length > 0, "invalid rebate contract");
-        rebate = reb;
-        emit RebateSet(address(reb));
-    }
-
     function setOrderStatusDurationSec(uint64 sec) external onlyRole(AdminRole) {
         orderStatusDurationSec = sec;
     }
@@ -184,16 +147,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     function alignAmount18(address payToken, uint256 sellAmount) internal view returns(uint256) {
         return sellAmount * 10**(18 - supportedTokenDecimals[payToken]);
     }
-    // claim CANDY rewards
-    function claimRewards() external {
-        uint256 relationId = relationship.getRelationId(msg.sender);
-        uint256 rewardsAmount = rebateCandyRewards[relationId];
-        require(rewardsAmount > 0, "no rewards claimable");
 
-        rebateCandyRewards[relationId] = 0;
-        IERC20Metadata(rewardTokenAddress).transferFrom(financialWallet, msg.sender, rewardsAmount);
-        emit RewardClaimed(msg.sender, rewardsAmount);
+    // bind relationship
+    function bindRelationship(uint256 parentId) external {
+        relationship.bind(parentId, msg.sender);
+        reputation.onRelationBound(msg.sender);
     }
+
     // seller makes a order
     function makeOrder(address payToken, uint256 sellAmount, address buyer) external {
         require(supportedTokens.contains(payToken), "token not support");
@@ -201,14 +161,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(userLockedOrders[msg.sender].length() == 0, "seller has locked order");
         require(userLockedOrders[buyer].length() == 0, "buyer has locked order");
 
-        uint256 buyerId = relationship.getRelationId(buyer);
-        uint256 sellerId = relationship.getRelationId(msg.sender);
-        require(sellerId != 0, "seller is not registered");
-        require(buyerId != sellerId, "can not sell to self");
+        require(msg.sender != buyer, "can not sell to self");
 
         uint256 alignedAmount = alignAmount18(payToken, sellAmount);
-        require(reputation.isReputationEnough(buyerId, alignedAmount), "not enough reputation for buyer");
-        require(reputation.isReputationEnough(sellerId, alignedAmount), "not enough reputation for seller");
+        require(reputation.isReputationEnough(buyer, alignedAmount), "not enough reputation for buyer");
+        require(reputation.isReputationEnough(msg.sender, alignedAmount), "not enough reputation for seller");
 
         ++totalOrdersCount;
 
@@ -272,10 +229,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         order.toStatus(Order.Status.CONFIRMED);
 
         // S1: rewards for agents, buyer, seller
-        (uint256 candyForAgents, uint256 candyForDealer, uint256 points) = calculateOrderRewards(order);
-        dispatchRewardsToAgents(order.seller, candyForAgents);
-        dispatchRewardsToBuyer(order, points, candyForDealer);
-        dispatchRewardsToSeller(order, points, candyForDealer);
+        dispatchRewardsToAgents(order);
+        dispatchRewardsToBuyer(order);
+        dispatchRewardsToSeller(order);
 
         // S2: charege fee for community
         uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
@@ -348,8 +304,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
             releaseToBuyer(order);
 
-            (, uint256 candyForDealer, uint256 points) = calculateOrderRewards(order);
-            dispatchRewardsToBuyer(order, points, candyForDealer);
+            dispatchRewardsToBuyer(order);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
@@ -447,72 +402,34 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     function clearReputation(address dealer) internal {
-        uint256 relationId = relationship.getRelationId(dealer);
-        uint256 points = reputation.reputationPoints(address(this), relationId);
-
-        reputation.takeback(relationId, points);
+        uint256 points = reputation.reputationPoints(dealer);
+        reputation.takeback(dealer, points);
     }
 
-    function dispatchRewardsToAgents(address seller, uint256 fee)
+    function dispatchRewardsToAgents(Order.Record memory order)
         internal
         returns(uint256)
     {
-        uint256 rebateAmount;
-        uint256[] memory parentIds = relationship.getParentRelationId(seller, RebateLevels);
-        if (parentIds.length > 0) {
-            rebateAmount = fee * rebateRatio / RatioPrecision;  // 10% for rebates;
-            uint256[] memory parentRebates = rebate.calculateRebate(rebateAmount, parentIds);
-            for (uint256 i = 0; i < parentIds.length; ++i) {
-                if (parentIds[i] == 0) break;
-                rebateCandyRewards[parentIds[i]] += parentRebates[i];
-            }
-        }
-        return rebateAmount;
+        // dispatch fee to agents and community
     }
 
-    function dispatchRewardsToBuyer(Order.Record memory order, uint256 points, uint256 candyRewards) internal {
-        uint256 buyerRelationId = relationship.getRelationId(order.buyer);
-        reputation.grant(buyerRelationId, points);
-        // add 1 airdrop point for buyer and seller
-        airdropPoints[buyerRelationId] += 1;
-        // S3: calculate CANDY rewards for buyer & seller
-        uint256 buyerCandyReward = candyRewards * rewardForBuyerRatio / RatioPrecision;
-        rebateCandyRewards[buyerRelationId] += buyerCandyReward;
+    function dispatchRewardsToBuyer(Order.Record memory order) internal {
+        uint256 points = alignAmount18(order.payToken, order.sellAmount) * reputationRatio / RatioPrecision;
+        reputation.grant(order.buyer, points);
+        airdropPoints[order.buyer] += 1;
 
-        // S4: record rewards info
         Order.Rewards storage rewards = orderRewards[order.orderId];
-        rewards.buyerRewards = uint128(buyerCandyReward);
         rewards.buyerReputation = uint128(points);
         rewards.buyerAirdropPoints = uint128(1);
     }
 
-    function dispatchRewardsToSeller(Order.Record memory order, uint256 points, uint256 candyRewards) internal {
-        uint256 sellerRelationId = relationship.getRelationId(order.seller);
+    function dispatchRewardsToSeller(Order.Record memory order) internal {
+        uint256 points = alignAmount18(order.payToken, order.sellAmount) * reputationRatio / RatioPrecision;
+        reputation.grant(order.seller, points);
+        airdropPoints[order.seller] += 1;
 
-        reputation.grant(sellerRelationId, points);
-
-        airdropPoints[sellerRelationId] += 1;
-
-        uint256 sellerCandyReward = candyRewards * rewardForSellerRatio / RatioPrecision;
-        rebateCandyRewards[sellerRelationId] += sellerCandyReward;
-
-        // S4: record rewards info
         Order.Rewards storage rewards = orderRewards[order.orderId];
-        rewards.sellerRewards = uint128(sellerCandyReward);
         rewards.sellerReputation = uint128(points);
         rewards.sellerAirdropPoints = uint128(1);
-    }
-
-    function calculateOrderRewards(Order.Record memory order)
-        internal
-        view
-        returns(uint256 candyForAgents, uint256 candyForDealer, uint256 points)
-    {
-        uint256 alignedAmount = alignAmount18(order.payToken, order.sellAmount);
-        uint256 totalCandyRewards = alignedAmount * rewardExchangeRatio / RatioPrecision;
-
-        candyForAgents = totalCandyRewards * rebateRatio / RatioPrecision;
-        candyForDealer = totalCandyRewards - candyForAgents;
-        points = alignedAmount * reputationRatio / RatioPrecision;
     }
 }

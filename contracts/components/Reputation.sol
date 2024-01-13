@@ -47,4 +47,8 @@ contract Reputation {
 
         emit ReputationTookback(holder, amount);
     }
+
+    function isReputationEnough(address holder, uint256 amount) external view returns(bool) {
+        return reputationPoints[holder] >= amount;
+    }
 }

@@ -15,7 +15,7 @@ interface IBeeSmart {
     function orderRewards(uint256) external view returns(Order.Rewards memory);
     function relationship() external view returns(IRelationship);
     function reputation() external view returns(IReputation);
-    function airdropPoints(uint256) external view returns(uint256);
+    function airdropPoints(address) external view returns(uint256);
     function getSupportTokens() external view returns(address[] memory);
     function rebateCandyRewards(uint256) external view returns(uint256);
     function getAllLockedOrderIds() external view returns(uint256[] memory);
@@ -263,8 +263,8 @@ contract BeeSmartLens {
 
         UserInfo memory info = UserInfo({
             relationId: relationId,
-            airdropCount: smart.airdropPoints(relationId),
-            reputationCount: reputation.reputationPoints(address(smart), relationId),
+            airdropCount: smart.airdropPoints(wallet),
+            reputationCount: reputation.reputationPoints(wallet),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),
             rebateAmount: 0,
             assetsBalance: new AssetBalance[](tradableTokens.length)
