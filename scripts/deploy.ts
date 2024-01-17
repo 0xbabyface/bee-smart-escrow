@@ -30,7 +30,6 @@ async function main() {
   const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);
   await smart.setRelationship(Relationship.target);
   await smart.setReputation(Reputation.target);
-  await smart.setRebate(Rebate.target);
   // await smart.setCommunityFeeRatio(
   //   ethers.parseEther("0.03"),  // community fee ratio
   //   ethers.parseEther("1.0"),   // buyer charged
@@ -47,8 +46,6 @@ async function main() {
 
   // await smart.setOrderStatusDurationSec(30 * 60);  // order wait for 30 minutes then can disputing
   await smart.setCommunityWallet(owner.address);
-  await smart.setFinancialWallet(owner.address);
-  await smart.setRewardToken(Candy.target);
 
   await Candy.setMinter(BeeSmartProxy.target, true);
 

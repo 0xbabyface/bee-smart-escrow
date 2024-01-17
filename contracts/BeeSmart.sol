@@ -33,11 +33,15 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event RelationshipSet(address indexed relationship);
     event ReputationSet(address indexed reputation);
     event RebateSet(address indexed rebate);
-    event RewardFeeRatioSet(uint256 rewardForBuyer, uint256 rewardForSeller);
     event RewardClaimed(address indexed owner, uint256 amount);
     event RewardTokenSet(address indexed admin, address indexed oldTokenAddress, address indexed newTokenAddress);
 
-    function initialize(address[] memory admins, address[] memory communities) external {
+    function initialize(
+        address[] memory admins,
+        address[] memory communities
+    )
+        external
+    {
         require(initialized == 0, "already initialized");
         initialized = 1;
 
@@ -53,8 +57,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         communityFeeRatio        = 0.03E18;  // fee ratio: 3%
         chargesBaredBuyerRatio   = 1E18;     // 100% buyer fee ratio
         chargesBaredSellerRatio  = 0;        // 0% seller fee ratio
-        rewardForBuyerRatio      = 0.7E18;  // reward for buyer
-        rewardForSellerRatio     = 0.3E18;  // reward for seller
         reputationRatio          = 1E18;     // reputation points ratio:  tradeAmount * reputationRatio = Points
     }
 
@@ -80,17 +82,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityFeeRatioSet(msg.sender, r, buyerChargedRatio, sellerChargedRatio);
     }
 
-    // set reward fee ratio for buyer & seller
-    function setRewardFeeRatio(uint256 rewardForBuyer, uint256 rewardForSeller) external onlyRole(AdminRole) {
-        require(0 <= rewardForBuyer && rewardForBuyer <= RatioPrecision, "buyer reward ratio invalid");
-        require(0 <= rewardForSeller && rewardForSeller <= RatioPrecision, "seller reward ratio invalid");
-        require(rewardForBuyer + rewardForSeller == RatioPrecision, "reward ratio not percent 100");
-
-        rewardForBuyerRatio = rewardForBuyer;
-        rewardForSellerRatio = rewardForSeller;
-
-        emit RewardFeeRatioSet(rewardForBuyer, rewardForSeller);
-    }
     // set role
     function setRole(bytes32 role, address account, bool toGrant) external onlyRole(AdminRole) {
         require(role == AdminRole || role == CommunityRole, "unknown role");

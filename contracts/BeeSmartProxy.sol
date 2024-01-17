@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract BeeSmartProxy is ERC1967Proxy {
 
-    event OwnershipTransfered(address indexed oldAdmin, address indexed newAdmin);
+    event AdminshipTransfered(address indexed oldAdmin, address indexed newAdmin);
 
     modifier onlyAdmin() {
         require(msg.sender == _getAdmin(), "only amdin");
@@ -20,11 +20,11 @@ contract BeeSmartProxy is ERC1967Proxy {
         _changeAdmin(owner);
     }
 
-    function transferOwnership(address newAdmin) external onlyAdmin {
+    function transferAdminship(address newAdmin) external onlyAdmin {
         require(newAdmin != address(0), "invalid admin");
         address oldAdmin = _getAdmin();
         _changeAdmin(newAdmin);
-        emit OwnershipTransfered(oldAdmin, newAdmin);
+        emit AdminshipTransfered(oldAdmin, newAdmin);
     }
 
     function setImplementation(

@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./components/IRelationship.sol";
 import "./components/IReputation.sol";
 import "./libs/Order.sol";
+import "./components/AgentManager.sol";
 
 contract BeeSmartStorage {
 
@@ -37,6 +38,7 @@ contract BeeSmartStorage {
 
     IRelationship public relationship;
     IReputation   public reputation;
+    AgentManager  public agentMgr;
 
     address       public communityWallet;
 
@@ -44,8 +46,6 @@ contract BeeSmartStorage {
     uint256       public communityFeeRatio = 0.03E18;  // fee ratio: 0.3%
     uint256       public chargesBaredBuyerRatio = 1E18;  // 100% buyer fee ratio
     uint256       public chargesBaredSellerRatio = 0;  // 0% seller fee ratio
-    uint256       public rewardForBuyerRatio = 0.03E18;  // reward for buyer
-    uint256       public rewardForSellerRatio = 0.03E18;  // reward for seller
     uint256       public reputationRatio = 1E18; // reputation points ratio:  tradeAmount * reputationRatio = Points
 
     EnumerableSet.UintSet lockedOrders;  // all locked orders
