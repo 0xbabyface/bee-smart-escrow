@@ -2,9 +2,10 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "./components/IRelationship.sol";
 import "./components/IReputation.sol";
+import "./components/AgentManager.sol";
 import "./libs/Order.sol";
+// import "./IBeeSmart.sol";
 
 interface IBeeSmart {
     function getLengthOfSellOrders(address) external view returns(uint256);
@@ -13,13 +14,14 @@ interface IBeeSmart {
     function buyOrdersOfUser(address, uint256) external view returns(uint256);
     function orders(uint256) external view returns(Order.Record memory);
     function orderRewards(uint256) external view returns(Order.Rewards memory);
-    function relationship() external view returns(IRelationship);
     function reputation() external view returns(IReputation);
     function airdropPoints(address) external view returns(uint256);
     function getSupportTokens() external view returns(address[] memory);
     function rebateCandyRewards(uint256) external view returns(uint256);
     function getAllLockedOrderIds() external view returns(uint256[] memory);
     function getUserLockedOrderIds(address user) external view returns(uint256[] memory);
+    function boundAgents(address user) external view returns(address);
+    function agentMgr() external view returns(AgentManager);
 }
 
 enum FilterType { SellOngoing, BuyOngoing, SellHistory, BuyHistory}
@@ -246,7 +248,7 @@ contract BeeSmartLens {
     }
 
     struct UserInfo {
-        uint256 relationId;
+        uint96 agentId;
         uint256 airdropCount;
         uint256 reputationCount;
         uint256 totalTrades;
@@ -255,14 +257,13 @@ contract BeeSmartLens {
     }
 
     function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
-        IRelationship relationship = smart.relationship();
         IReputation reputation = smart.reputation();
-
-        uint256 relationId = relationship.getRelationId(wallet);
+        address boundAgent = smart.boundAgents(wallet);
+        uint96 relationId = smart.agentMgr().getAgentId(boundAgent);
         address[] memory tradableTokens = smart.getSupportTokens();
 
         UserInfo memory info = UserInfo({
-            relationId: relationId,
+            agentId: relationId,
             airdropCount: smart.airdropPoints(wallet),
             reputationCount: reputation.reputationPoints(wallet),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),

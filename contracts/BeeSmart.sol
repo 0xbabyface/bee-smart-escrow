@@ -23,22 +23,22 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event CommunityDecided(uint256 indexed orderId, address indexed judger, uint8 decision);
 
     event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
-    event FinancialWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
-    event CommunityFeeRatioSet(address indexed admin, uint256 ratio, uint256 buyerCharged, uint256 sellerCharged);
+    event AgentsWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
+    event GlobalShareWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
+
+    event ShareFeeRatioSet(address indexed admin, uint256 communityRatio, uint256 agentRatio, uint256 globalRatio, uint256 sameLevelRatio);
     event RoleSet(address indexed admin, bytes32 role, address account, bool toGrant);
     event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
-    event RebateRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
-    event ExchangeRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
 
-    event RelationshipSet(address indexed relationship);
     event ReputationSet(address indexed reputation);
-    event RebateSet(address indexed rebate);
-    event RewardClaimed(address indexed owner, uint256 amount);
-    event RewardTokenSet(address indexed admin, address indexed oldTokenAddress, address indexed newTokenAddress);
+    event RewardClaimed(address indexed owner, address payToken, uint256 amount);
 
     function initialize(
         address[] memory admins,
-        address[] memory communities
+        address[] memory communities,
+        address _communityWallet,
+        address _agentWallet,
+        address _globalWallet
     )
         external
     {
@@ -53,11 +53,18 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             _grantRole(CommunityRole, communities[i]);
         }
 
-        orderStatusDurationSec   = 30 * 60;  // wait seconds for new status
-        communityFeeRatio        = 0.03E18;  // fee ratio: 3%
-        chargesBaredBuyerRatio   = 1E18;     // 100% buyer fee ratio
-        chargesBaredSellerRatio  = 0;        // 0% seller fee ratio
-        reputationRatio          = 1E18;     // reputation points ratio:  tradeAmount * reputationRatio = Points
+        orderStatusDurationSec  = 30 * 60;   // 30 minutes waiting for order status
+        communityFeeRatio       = 0.2E18;    // fee ratio: 20%
+        agentFeeRatio           = 0.1E18;    // top agent ratio 10%
+        globalShareFeeRatio     = 0.1E18;    // global share fee ratio
+        sameLevelFeeRatio       = 0.1E18;    // same level fee ratio
+        chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio
+        chargesBaredSellerRatio = 0.005E18;  // 0.5% seller fee ratio
+        reputationRatio         = 1E18;
+
+        communityWallet   = _communityWallet;
+        agentsWallet      = _agentWallet;
+        globalShareWallet = _globalWallet;
     }
 
     // set community wallet
@@ -70,16 +77,37 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
 
+    function setAgentsWallet(address w) external onlyRole(AdminRole) {
+        require(w != address(0), "wallet is null");
+        require(w != agentsWallet, "same wallet");
+
+        address oldWallet = agentsWallet;
+        agentsWallet = w;
+        emit AgentsWalletSet(msg.sender, oldWallet, w);
+    }
+
+    function setGlobalShareWallet(address w) external onlyRole(AdminRole) {
+        require(w != address(0), "wallet is null");
+        require(w != globalShareWallet, "same wallet");
+
+        address oldWallet = globalShareWallet;
+        agentsWallet = w;
+        emit GlobalShareWalletSet(msg.sender, oldWallet, w);
+    }
+
     // set community fee ratio
-    function setCommunityFeeRatio(uint256 r, uint256 buyerChargedRatio, uint256 sellerChargedRatio) external onlyRole(AdminRole) {
-        require(0 <= r && r <= 1E18, "fee ratio invalid");
-        require(buyerChargedRatio + sellerChargedRatio == RatioPrecision, "buyer and seller charged not percent 100");
+    function setShareFeeRatio(uint256 communityRatio, uint256 agentRatio, uint256 globalRatio, uint256 sameLevelRatio) external onlyRole(AdminRole) {
+        require(
+            communityRatio + agentRatio + globalRatio + sameLevelRatio == 0.5E18,
+            "share ratio is not 50%"
+        );
 
-        communityFeeRatio = r;
-        chargesBaredBuyerRatio = buyerChargedRatio;
-        chargesBaredSellerRatio = sellerChargedRatio;
+        communityFeeRatio = communityRatio;
+        agentFeeRatio = agentRatio;
+        globalShareFeeRatio = globalRatio;
+        sameLevelFeeRatio = sameLevelRatio;
 
-        emit CommunityFeeRatioSet(msg.sender, r, buyerChargedRatio, sellerChargedRatio);
+        emit ShareFeeRatioSet(msg.sender, communityRatio, agentRatio, globalRatio, sameLevelRatio);
     }
 
     // set role
@@ -119,12 +147,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
     }
 
-    function setRelationship(IRelationship rs) external onlyRole(AdminRole) {
-        require(address(rs).code.length > 0, "invalid relaionship contract");
-        relationship = rs;
-        emit RelationshipSet(address(rs));
-    }
-
     function setReputation(IReputation rep) external onlyRole(AdminRole) {
         require(address(rep).code.length > 0, "invalid reputaion contract");
         reputation = rep;
@@ -140,9 +162,26 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     // bind relationship
-    function bindRelationship(uint256 parentId) external {
-        relationship.bind(parentId, msg.sender);
+    function bindRelationship(uint96 parentId) external {
+        require(boundAgents[msg.sender] == address(0), "already bound");
+        require(agentMgr.isAgentId(parentId), "airdrop code invalid");
+
+        address parentWallet = agentMgr.walletMapping(parentId);
+        boundAgents[msg.sender] = parentWallet;
+
         reputation.onRelationBound(msg.sender);
+    }
+
+    // agents and community and any one claim reward
+    function claimPendingRewards(address payToken) external {
+        require(pendingRewards[msg.sender][payToken] > 0, "no pending rewards");
+
+        uint256 rewards = pendingRewards[msg.sender][payToken];
+        pendingRewards[msg.sender][payToken] = 0;
+
+        IERC20Metadata(payToken).transfer(msg.sender, rewards);
+
+        emit RewardClaimed(msg.sender, payToken, rewards);
     }
 
     // seller makes a order
@@ -160,7 +199,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         ++totalOrdersCount;
 
-        uint256 sellerFee = sellAmount * communityFeeRatio * chargesBaredSellerRatio / RatioPrecision / RatioPrecision;
+        uint256 sellerFee = sellAmount * chargesBaredSellerRatio / RatioPrecision;
         IERC20Metadata(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
 
         uint256 orderId = totalOrdersCount;
@@ -219,21 +258,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         order.toStatus(Order.Status.CONFIRMED);
 
+        uint256 buyerGotAmount  = releaseToBuyer(order);
+
         // S1: rewards for agents, buyer, seller
-        dispatchRewardsToAgents(order);
-        dispatchRewardsToBuyer(order);
-        dispatchRewardsToSeller(order);
+        dispatchFees(order.buyerFee, order.payToken, order.buyer);
+        dispatchFees(order.sellerFee, order.payToken, order.seller);
+        dispatchReputationAndAirdrop(order, true);
 
-        // S2: charege fee for community
-        uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
-        uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
-        uint256 buyerGotAmount = order.sellAmount - buyerFee;
-        order.buyerFee = buyerFee;
-        // S5: transfer token to buyer & community
-        IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
-        IERC20Metadata(order.payToken).transfer(communityWallet, communityFee);
-
-        emit OrderConfirmed(orderId, buyerGotAmount, order.sellAmount - buyerGotAmount);
+        emit OrderConfirmed(orderId, buyerGotAmount, order.buyerFee + order.sellerFee);
     }
 
     // seller wants to dispute
@@ -294,8 +326,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             order.toStatus(Order.Status.CONFIRMED);
 
             releaseToBuyer(order);
-
-            dispatchRewardsToBuyer(order);
+            dispatchFees(order.buyerFee, order.payToken, order.buyer);
+            dispatchReputationAndAirdrop(order, false);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
@@ -338,6 +370,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         if (decision == 0 /* Buyer Win */) {
             order.toStatus(Order.Status.BUYERWIN);
             releaseToBuyer(order);
+            dispatchFees(order.buyerFee, order.payToken, order.buyer);
             clearReputation(order.seller);
         } else if (decision == 1 /* Seller Win*/) {
             order.toStatus(Order.Status.SELLERWIN);
@@ -376,15 +409,17 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
 // --------------------- internal functions -------------------------------
-    function releaseToBuyer(Order.Record storage order) internal {
-        uint256 communityFee = order.sellAmount * communityFeeRatio / RatioPrecision;
-        uint256 buyerFee     = communityFee * chargesBaredBuyerRatio / RatioPrecision;
+    function releaseToBuyer(Order.Record storage order) internal returns(uint256) {
+        uint256 buyerFee     = order.sellAmount * chargesBaredBuyerRatio / RatioPrecision;
         uint256 buyerGotAmount = order.sellAmount - buyerFee;
 
         order.buyerFee = buyerFee;
 
+        uint96 agentId = agentMgr.getAgentId(boundAgents[order.buyer]);
+        agentTradeVolumn[agentId][order.payToken] += order.sellAmount;
+
         IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
-        IERC20Metadata(order.payToken).transfer(communityWallet, communityFee);
+        return buyerGotAmount;
     }
 
     function releaseToSeller(Order.Record storage order) internal {
@@ -397,30 +432,61 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputation.takeback(dealer, points);
     }
 
-    function dispatchRewardsToAgents(Order.Record memory order)
+    function dispatchFees(uint256 totalFee, address payToken, address trader)
         internal
-        returns(uint256)
     {
+        if (totalFee == 0) return;
         // dispatch fee to agents and community
+        uint256 communityFee = totalFee * communityFeeRatio / RatioPrecision;
+        uint256 agentFee     = totalFee * agentFeeRatio / RatioPrecision;
+        uint256 globalFee    = totalFee * globalShareFeeRatio / RatioPrecision;
+        uint256 sameLevelFee = totalFee * sameLevelFeeRatio / RatioPrecision;
+
+        pendingRewards[communityWallet][payToken]   += communityFee;
+        pendingRewards[agentsWallet][payToken]      += agentFee;
+        pendingRewards[globalShareWallet][payToken] += globalFee;
+
+        RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(trader);
+        uint len = upperAgents.length;
+        uint agentTotalFee = totalFee / 2; // 50% fee share to agents
+        uint leftFee = agentTotalFee;
+        for (uint i = 0; i < len; ++i) {
+            RewardAgent memory agt = upperAgents[i];
+            if (agt.feeRatio != 0) {
+                uint256 r = agentTotalFee * agt.feeRatio / RatioPrecision;
+                pendingRewards[agt.wallet][payToken] += r;
+                leftFee -= r;
+            } else {
+                if (sameLevelFee != 0) { // if agent fee ratio is 0, share same level fee
+                    pendingRewards[agt.wallet][payToken] += sameLevelFee;
+                    sameLevelFee = 0;
+                }
+            }
+        }
+
+        if (leftFee > 0) {
+            pendingRewards[agentsWallet][payToken] += leftFee;
+        }
+
+        if (sameLevelFee > 0) {
+            pendingRewards[agentsWallet][payToken] += sameLevelFee;
+        }
     }
 
-    function dispatchRewardsToBuyer(Order.Record memory order) internal {
+    function dispatchReputationAndAirdrop(Order.Record memory order, bool forSeller) internal {
         uint256 points = alignAmount18(order.payToken, order.sellAmount) * reputationRatio / RatioPrecision;
+        Order.Rewards storage rewards = orderRewards[order.orderId];
+
         reputation.grant(order.buyer, points);
-        airdropPoints[order.buyer] += 1;
-
-        Order.Rewards storage rewards = orderRewards[order.orderId];
         rewards.buyerReputation = uint128(points);
-        rewards.buyerAirdropPoints = uint128(1);
-    }
+        airdropPoints[order.buyer]  += 1;
+        rewards.buyerAirdropPoints  = uint128(1);
 
-    function dispatchRewardsToSeller(Order.Record memory order) internal {
-        uint256 points = alignAmount18(order.payToken, order.sellAmount) * reputationRatio / RatioPrecision;
-        reputation.grant(order.seller, points);
-        airdropPoints[order.seller] += 1;
-
-        Order.Rewards storage rewards = orderRewards[order.orderId];
-        rewards.sellerReputation = uint128(points);
-        rewards.sellerAirdropPoints = uint128(1);
+        if (forSeller) {
+            airdropPoints[order.seller] += 1;
+            rewards.sellerReputation = uint128(points);
+            reputation.grant(order.seller, points);
+            rewards.sellerAirdropPoints = uint128(1);
+        }
     }
 }

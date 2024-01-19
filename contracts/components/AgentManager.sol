@@ -4,18 +4,20 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
+enum StarLevel { NoneStar, Star1, Star2, Star3 }
 struct Agent {
     uint96                   selfId;        // self id
-    uint32                   starLevel;     // star level
-    bool                     canAddSubAgent;// if this agent can has its own sub agent
-    address                  parentWallet;      // parent id
     address                  selfWallet;        // wallet address
+    address                  parentWallet;      // parent id
+    StarLevel                starLevel;     // star level
+    bool                     canAddSubAgent;// if this agent can has its own sub agent
+    bool                     removed;
     EnumerableSet.AddressSet subAgents;     // wallet address of sub agents
 }
 
-struct SimpleAgent {
-    address wallet;
-    uint32  startLevel;
+struct RewardAgent {
+    address  wallet;
+    uint256  feeRatio;
 }
 
 contract AgentManager is Ownable, Initializable {
@@ -23,19 +25,29 @@ contract AgentManager is Ownable, Initializable {
     uint96  public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
-
     // wallet address => Agent
     mapping(address => Agent) agents;
     // agent id => agent wallet
-    mapping(uint96 => address) walletMapping;
+    mapping(uint96 => address) public walletMapping;
+    // star level => share fee ratio
+    mapping(StarLevel => uint256) public shareFeeRatio;
+
     uint96 public totalAgents;
     uint96        idCounter;
 
-    event AgentAdded(address indexed parent, address indexed self, uint32 starLevel, bool canAddSubAgent);
-    event AgentStarLevelChanged(address indexed agent, uint32 oldStarLevel, uint32 newStarLevel);
+    event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel, bool canAddSubAgent);
+    event AgentStarLevelChanged(address indexed agent, StarLevel oldStarLevel, StarLevel newStarLevel);
     event AgentAbilityChanged(address indexed agent, bool oldAbility, bool newAbility);
     event AgentRemoved(address indexed operator, address indexed agent);
 
+    error StarLevelMismatch(address father, address son, StarLevel newLevel, StarLevel sonLevel);
+
+    modifier validStarLevel(StarLevel level) {
+        require(level == StarLevel.Star1 || level == StarLevel.Star2 || level == StarLevel.Star3,
+            "invalid star level"
+        );
+        _;
+    }
     function nextId() internal returns(uint96) {
         ++idCounter;
         ++totalAgents;
@@ -51,9 +63,14 @@ contract AgentManager is Ownable, Initializable {
         Agent storage rootAgent = agents[RootWallet];
         rootAgent.selfId     = RootId;
         rootAgent.selfWallet = RootWallet;
-    }
 
-    function addTopAgent(address agent, uint32 starLevel, bool canAddSubAgent) external onlyOwner {
+        shareFeeRatio[StarLevel.NoneStar] = 0;
+        shareFeeRatio[StarLevel.Star1] = 0.2E18;
+        shareFeeRatio[StarLevel.Star2] = 0.3E18;
+        shareFeeRatio[StarLevel.Star3] = 0.5E18;
+    }
+    // to add top agent by platform owner
+    function addTopAgent(address agent, StarLevel starLevel, bool canAddSubAgent) external validStarLevel(starLevel) onlyOwner {
         require(!agents[RootWallet].subAgents.contains(agent), "already added");
         agents[RootWallet].subAgents.add(agent);
 
@@ -69,35 +86,51 @@ contract AgentManager is Ownable, Initializable {
         emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
     }
     /**
-    *
+    * add sub agent for msg.sender
      */
-    function addAgent(address subAgent, uint32 starLevel, bool canAddSubAgent) external returns(uint96) {
-        Agent storage agent = agents[msg.sender];
-        require(agent.canAddSubAgent, "can not add sub agent");
-        require(!agent.subAgents.contains(subAgent), "sub agent is added");
+    function addAgent(address subAgent, StarLevel starLevel, bool canAddSubAgent) external validStarLevel(starLevel) returns(uint96) {
+        Agent storage upAgent = agents[msg.sender];
+        require(upAgent.canAddSubAgent, "can not add sub agent");
+        require(!upAgent.subAgents.contains(subAgent), "sub agent is added");
         require(agents[subAgent].selfId == 0, "sub agent has bound");
+        require(starLevel <= upAgent.starLevel, "star level should less than sender");
 
-        agent.subAgents.add(subAgent);
+        upAgent.subAgents.add(subAgent);
 
         Agent storage newAgent  = agents[subAgent];
         newAgent.selfId         = nextId();
         newAgent.selfWallet     = subAgent;
-        newAgent.parentWallet   = agent.selfWallet;
+        newAgent.parentWallet   = upAgent.selfWallet;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
 
         walletMapping[newAgent.selfId] = subAgent;
 
-        emit AgentAdded(agent.selfWallet, subAgent, starLevel, canAddSubAgent);
+        emit AgentAdded(upAgent.selfWallet, subAgent, starLevel, canAddSubAgent);
 
         return newAgent.selfId;
     }
 
-    function setAgentStarLevel(address agent, uint32 newStarLevel) external {
-        require(agents[msg.sender].subAgents.contains(agent), "not your sub agent");
+    function setAgentStarLevel(address agent, StarLevel newStarLevel) validStarLevel(newStarLevel) external {
+        require(
+            agents[msg.sender].subAgents.contains(agent) ||
+            agents[msg.sender].parentWallet == RootWallet,
+            "not your sub agent"
+        );
+        require(
+            !agents[agent].removed,
+            "agent is removed"
+        );
+
+        address[] memory nextAgents = agents[agent].subAgents.values();
+        uint len = nextAgents.length;
+        for (uint i = 0; i < len; ++i) {
+            if (agents[nextAgents[i]].starLevel > newStarLevel)
+                revert StarLevelMismatch(agent, nextAgents[i], newStarLevel, agents[nextAgents[i]].starLevel);
+        }
 
         Agent storage subAgent = agents[agent];
-        uint32 oldStarLevel = subAgent.starLevel;
+        StarLevel oldStarLevel = subAgent.starLevel;
         require(oldStarLevel != newStarLevel, "star level not changed");
 
         subAgent.starLevel = newStarLevel;
@@ -106,7 +139,11 @@ contract AgentManager is Ownable, Initializable {
     }
 
     function setAgentAbility(address agent, bool newAbility) external {
-        require(agents[msg.sender].subAgents.contains(agent), "not your sub agent");
+        require(
+            agents[msg.sender].subAgents.contains(agent) ||
+            agents[msg.sender].parentWallet == RootWallet,
+            "not your sub agent"
+        );
 
         Agent storage subAgent = agents[agent];
         bool oldAbility = subAgent.canAddSubAgent;
@@ -123,7 +160,10 @@ contract AgentManager is Ownable, Initializable {
     function removeSubAgent(address agent) external {
         require(agents[msg.sender].subAgents.contains(agent), "not your sub agent");
 
-        doRemoveAgent(msg.sender, agent);
+        agents[msg.sender].subAgents.remove(agent);
+        agents[agent].removed = true;
+
+        emit AgentRemoved(msg.sender, agent);
     }
 
     /**
@@ -133,55 +173,71 @@ contract AgentManager is Ownable, Initializable {
         require(agents[msg.sender].selfWallet == RootWallet, "you are not top agent");
         require(agents[agent].selfWallet != RootWallet, "can not remove top agent");
 
-        doRemoveAgent(agents[agent].parentWallet, agent);
+        agents[agent].removed = true;
+
+        Agent storage pAgent = agents[agent];
+        pAgent.subAgents.remove(agent);
+
+        emit AgentRemoved(msg.sender, agent);
     }
 
-    function doRemoveAgent(address parent, address son) internal {
-        Agent storage removedAgent = agents[son];
-        Agent storage parentAgent = agents[parent];
-        address[] memory sons = removedAgent.subAgents.values();
-        uint256 len = sons.length;
-        for (uint256 i = 0; i < len; ++i) {
-            parentAgent.subAgents.add(sons[i]);
-        }
-
-        delete walletMapping[removedAgent.selfId];
-        delete agents[son];
-        --totalAgents;
-
-        emit AgentRemoved(msg.sender, son);
-    }
 // -------------- view functions -----------------------------------------
     function isAgentId(uint96 aid) external view returns(bool) {
-        return walletMapping[aid] != address(0);
+        address agent = walletMapping[aid];
+        return agent != address(0) && !agents[agent].removed;
     }
 
     function isAgentWallet(address wallet) external view returns(bool) {
-        return agents[wallet].selfWallet != address(0);
+        return agents[wallet].selfWallet != address(0) && !agents[wallet].removed;
     }
+
+    // to get agent id
+    function getAgentId(address agentAddress) external view returns(uint96) {
+        address temp = agentAddress;
+        while(agents[temp].removed && agents[temp].parentWallet != RootWallet) {
+            temp = agents[temp].parentWallet;
+        }
+
+        return agents[temp].selfId;
+    }
+
     /**
     * get upper 4 agents if have
     */
-    function getUpperAgents(address fromAgent) external view returns(SimpleAgent[] memory) {
-
-        uint count = 1;
+    function getUpperAgents(address fromAgent) external view returns(RewardAgent[] memory) {
+        uint count;
         address temp = fromAgent;
         for (uint i = 0; i < 4; ++i) {
+            if (!agents[temp].removed) ++count;
             if (agents[temp].parentWallet == RootWallet) break;
 
-            ++count;
             temp = agents[temp].parentWallet;
         }
 
-        temp = fromAgent;
-        SimpleAgent[] memory upper = new SimpleAgent[](count);
-        for (uint i = 0; i < count; ++i) {
-            upper[i] = SimpleAgent(agents[temp].selfWallet, agents[temp].starLevel);
+        RewardAgent[] memory upper = new RewardAgent[](count);
+        if (count > 0) {
+            upper[0] = RewardAgent(
+                fromAgent,
+                rewardRatioForStarLevel(agents[fromAgent].starLevel, StarLevel.NoneStar)
+            );
+            temp = agents[fromAgent].parentWallet;
+            for (uint i = 1; i < count; ++i) {
+                if (agents[temp].parentWallet == RootWallet) break;
 
-            if (agents[temp].parentWallet == RootWallet) break;
-            temp = agents[temp].parentWallet;
+                upper[i] = RewardAgent(
+                    agents[temp].selfWallet,
+                    rewardRatioForStarLevel(agents[temp].starLevel, agents[upper[i - 1].wallet].starLevel)
+                );
+
+                temp = agents[temp].parentWallet;
+            }
         }
 
         return upper;
+    }
+
+
+    function rewardRatioForStarLevel(StarLevel currentLevel, StarLevel preLevel) internal view returns(uint256) {
+        return shareFeeRatio[currentLevel] - shareFeeRatio[preLevel];
     }
 }
