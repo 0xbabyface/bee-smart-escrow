@@ -5,7 +5,7 @@ contract Reputation {
 
     uint256 public constant InitReputationPoints = 5000e18;
     // holder => amount
-    mapping(address => uint256) reputationPoints;
+    mapping(address => uint256) public reputationPoints;
 
     address public beeSmart;
 

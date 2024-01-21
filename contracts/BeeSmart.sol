@@ -31,14 +31,17 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
 
     event ReputationSet(address indexed reputation);
+    event AgentManagerSet(address indexed agtManager);
     event RewardClaimed(address indexed owner, address payToken, uint256 amount);
 
     function initialize(
         address[] memory admins,
         address[] memory communities,
+        address[] memory payTokens,
         address _communityWallet,
         address _agentWallet,
-        address _globalWallet
+        address _globalWallet,
+        address _agtMgr
     )
         external
     {
@@ -53,6 +56,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             _grantRole(CommunityRole, communities[i]);
         }
 
+        for (uint i = 0; i < payTokens.length; ++i) {
+            supportedTokens.add(payTokens[i]);
+            supportedTokenDecimals[payTokens[i]] = IERC20Metadata(payTokens[i]).decimals();
+        }
+
         orderStatusDurationSec  = 30 * 60;   // 30 minutes waiting for order status
         communityFeeRatio       = 0.2E18;    // fee ratio: 20%
         agentFeeRatio           = 0.1E18;    // top agent ratio 10%
@@ -65,6 +73,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         communityWallet   = _communityWallet;
         agentsWallet      = _agentWallet;
         globalShareWallet = _globalWallet;
+
+        agentMgr = AgentManager(_agtMgr);
     }
 
     // set community wallet
@@ -151,6 +161,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(address(rep).code.length > 0, "invalid reputaion contract");
         reputation = rep;
         emit ReputationSet(address(rep));
+    }
+
+    function setAgentManager(address agtManager) external onlyRole(AdminRole) {
+        require(agtManager.code.length > 0, "invalid agentmanager contract");
+
+        agentMgr = AgentManager(agtManager);
+
+        emit AgentManagerSet(agtManager);
     }
 
     function setOrderStatusDurationSec(uint64 sec) external onlyRole(AdminRole) {
@@ -478,14 +496,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         Order.Rewards storage rewards = orderRewards[order.orderId];
 
         reputation.grant(order.buyer, points);
-        rewards.buyerReputation = uint128(points);
         airdropPoints[order.buyer]  += 1;
+        rewards.buyerReputation = uint128(points);
         rewards.buyerAirdropPoints  = uint128(1);
 
         if (forSeller) {
+            reputation.grant(order.seller, points);
             airdropPoints[order.seller] += 1;
             rewards.sellerReputation = uint128(points);
-            reputation.grant(order.seller, points);
             rewards.sellerAirdropPoints = uint128(1);
         }
     }

@@ -46,7 +46,7 @@ async function main() {
   }
   console.log("userInfo:")
   console.log(`
-      relationId:      ${userInfo[0]}
+      agentId:         ${userInfo[0]}
       airdropCount:    ${userInfo[1]}
       reputationCount: ${ethers.formatEther(userInfo[2])}
       totalTrades:     ${userInfo[3]}

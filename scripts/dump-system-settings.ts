@@ -6,7 +6,6 @@ async function main() {
   const smart = await ethers.getContractAt("BeeSmart", contracts.BeeSmartProxy);
 
   console.log(`totalOrdersCount:          ${await smart.totalOrdersCount()}`);
-  console.log(`relationship contract:     ${await smart.relationship()}`);
   console.log(`reputation contract:       ${await smart.reputation()}`);
   console.log(`communityWallet:           ${await smart.communityWallet()}`);
   console.log(`orderStatusDurationSec:    ${await smart.orderStatusDurationSec()}`);
