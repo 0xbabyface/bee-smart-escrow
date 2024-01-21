@@ -3,132 +3,24 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { BeeSmart } from "../typechain-types";
+import { Status, airdropRewards, buyerFee, communityFee, deployBeeSmarts, forwardBlockTimestamp, reputationRewards, sellerFee } from "./common";
 
-enum Status {
-  UNKNOWN = 0,       // occupate the default status
-  NORMAL,        // normal status
-  ADJUSTED,      // buyer adjuste amount
-  CONFIRMED,     // seller confirmed
-  CANCELLED,     // buyer adjust amount to 0
-  SELLERDISPUTE, // seller dispute
-  BUYERDISPUTE,  // buyer dispute
-  LOCKED,        // both buyer and seller disputed
-  SELLERWIN,     // community decide seller win
-  BUYERWIN       // community decide buyer win
-}
-const Precision = ethers.parseEther("1");
 
 describe("BeeSmart", async function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
-  async function deployBeeSmarts() {
-    const [owner, buyer, seller, communitier, agent3, agent2, agent1, globalShare] = await ethers.getSigners();
+  let contracts: any = {};
 
-    const USDT = await ethers.deployContract("TestUSDT");
-    await USDT.waitForDeployment();
+  beforeEach(async () => {
+    const cc = await loadFixture(deployBeeSmarts);
+    const agent1Id = await cc.agentManager.getAgentId(cc.agent1.address);
 
-    const USDC = await ethers.deployContract("TestUSDC");
-    await USDC.waitForDeployment();
+    await cc.smart.connect(cc.buyer).bindRelationship(agent1Id);
+    await cc.smart.connect(cc.seller).bindRelationship(agent1Id);
 
-    let smartAdmins: string[] = [owner.address];
-    let smartCommunities: string[] = [owner.address];
-    let payTokens: string[] = [USDT.target as string, USDC.target as string];
-    let communityWallet = communitier.address;
-    let agentWallet = agent3.address;
-    let globalShareWallet = globalShare.address;
-    let agentManagerOwner = owner.address;
-    let adminship = owner.address;
-
-    const AgentManager = await ethers.deployContract("AgentManager");
-    await AgentManager.waitForDeployment();
-    const agentInit = AgentManager.interface.encodeFunctionData(
-      'initialize',
-      [agentManagerOwner]
-    );
-    const AgentManagerProxy = await ethers.deployContract("CommonProxy", [AgentManager.target, agentInit, adminship]);
-    await AgentManagerProxy.waitForDeployment();
-
-    const BeeSmart = await ethers.deployContract("BeeSmart");
-    await BeeSmart.waitForDeployment();
-
-    const initializeData = BeeSmart.interface.encodeFunctionData("initialize", [
-      smartAdmins,
-      smartCommunities,
-      payTokens,
-      communityWallet,
-      agentWallet,
-      globalShareWallet,
-      AgentManagerProxy.target
-    ]);
-    const BeeSmartProxy = await ethers.deployContract("CommonProxy", [BeeSmart.target, initializeData, adminship]);
-    await BeeSmartProxy.waitForDeployment();
-
-    const BeeSmartLens = await ethers.deployContract("BeeSmartLens");
-    await BeeSmartLens.waitForDeployment();
-
-    const Reputation = await ethers.deployContract("Reputation", [BeeSmartProxy.target]);
-    await Reputation.waitForDeployment();
-    // to initialize system
-    const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);
-    await smart.setReputation(Reputation.target);
-
-    await smart.setReputationRatio(ethers.parseEther("1.0"));  //  1 : 1 for candy
-
-    await smart.setRole(await smart.CommunityRole(), communitier.address, true);
-
-    await smart.setOrderStatusDurationSec(30 * 60);  // order wait for 30 minutes then can disputing
-
-    await USDC.mint(seller.address, ethers.parseEther("10000000"));
-    await USDT.mint(seller.address, ethers.parseEther("10000000"));
-
-    await USDC.connect(seller).approve(smart.target, ethers.parseEther("1000000000"));
-    await USDT.connect(seller).approve(smart.target, ethers.parseEther("1000000000"));
-
-    const agentManager = await ethers.getContractAt("AgentManager", AgentManagerProxy.target);
-    await agentManager.addTopAgent(agent3.address, 3, true);
-    await agentManager.connect(agent3).addAgent(agent2.address, 2, true);
-    await agentManager.connect(agent2).addAgent(agent1.address, 1, false);
-
-    const agent1Id = await agentManager.getAgentId(agent1.address);
-    const agent2Id = await agentManager.getAgentId(agent2.address);
-
-    await smart.connect(buyer).bindRelationship(agent1Id);
-    await smart.connect(seller).bindRelationship(agent2Id);
-
-    return { smart, agentManager, buyer, seller, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet};
-  }
-
-  async function forwardBlockTimestamp(forwardSecs: number) {
-    await ethers.provider.send("evm_increaseTime", [forwardSecs]);
-    await ethers.provider.send("evm_mine", []);
-  }
-
-  async function communityFee(smart: BeeSmart, sellAmount: bigint) {
-    const cr = await buyerFee(smart, sellAmount) + await sellerFee(smart, sellAmount);
-    const r = await smart.communityFeeRatio();
-    return cr * r / Precision;
-  }
-
-  async function buyerFee(smart: BeeSmart, sellAmount: bigint) {
-    const r = await smart.chargesBaredBuyerRatio();
-    return sellAmount * r / Precision ;
-  }
-
-  async function sellerFee(smart: BeeSmart, sellAmount: bigint) {
-    const r = await smart.chargesBaredSellerRatio();
-    return  sellAmount * r / Precision;
-  }
-
-  async function reputationRewards(smart: BeeSmart, sellAmount: bigint) {
-    const r = await smart.reputationRatio();
-    return sellAmount * r / Precision;
-  }
-
-  async function airdropRewards(smart: BeeSmart, sellAmount: bigint) {
-    return 1n;
-  }
+    contracts = cc;
+  })
 
   afterEach(async () => {
     // console.log("after each")
@@ -137,7 +29,7 @@ describe("BeeSmart", async function () {
   describe("normal procedures of order", function () {
 
     it("make order over reputations", async function () {
-      const { smart, seller, buyer, USDT, Reputation } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT, Reputation } = contracts;
 
       const sellerReputation = await Reputation.reputationPoints(seller.address);
       const buyerReputation = await Reputation.reputationPoints(buyer.address);
@@ -149,7 +41,7 @@ describe("BeeSmart", async function () {
     });
 
     it("normal make and confirm order", async function () {
-      const { smart, seller, buyer, USDT, communityWallet, Reputation } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT, communityWallet, Reputation } = contracts;
 
       const communityBalanceBefore = await smart.pendingRewards(communityWallet, USDT.target);
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
@@ -221,7 +113,7 @@ describe("BeeSmart", async function () {
     });
 
     it("make and adjust order", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -245,7 +137,7 @@ describe("BeeSmart", async function () {
     });
 
     it("make and adjust to cancel order", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
 
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
       const sellAmount = ethers.parseEther("180");
@@ -271,7 +163,7 @@ describe("BeeSmart", async function () {
     });
 
     it("seller dispute and recall", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -307,7 +199,7 @@ describe("BeeSmart", async function () {
     });
 
     it("buyer dispute and recall", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -344,7 +236,7 @@ describe("BeeSmart", async function () {
 
 
     it("seller dispute and dispute again", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
 
       const sellAmount = ethers.parseEther("180");
@@ -375,7 +267,7 @@ describe("BeeSmart", async function () {
     });
 
     it("buyer dispute and dispute again", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
       const buyerBalanceBefore = await USDT.balanceOf(buyer.address);
 
       const sellAmount = ethers.parseEther("180");
@@ -405,7 +297,7 @@ describe("BeeSmart", async function () {
     });
 
     it("seller dispute then buyer dispute", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
 
       const sellAmount = ethers.parseEther("180");
@@ -426,7 +318,7 @@ describe("BeeSmart", async function () {
     });
 
     it("buyer dispute then seller dispute", async function () {
-      const { smart, seller, buyer, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -446,7 +338,7 @@ describe("BeeSmart", async function () {
     });
 
     it("community decide seller win for locked order", async function () {
-      const { smart, seller, buyer, communitier, USDT, Reputation } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, communitier, USDT, Reputation } = contracts;
 
       const sellerBalanceBefore = await USDT.balanceOf(seller.address);
 
@@ -476,7 +368,7 @@ describe("BeeSmart", async function () {
     });
 
     it("community decide buyer win for locked order", async function () {
-      const { smart, seller, buyer, communitier, USDT, Reputation } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, communitier, USDT, Reputation } = contracts;
 
       const buyerBalanceBefore = await USDT.balanceOf(buyer.address);
 
@@ -506,7 +398,7 @@ describe("BeeSmart", async function () {
     });
 
     it("community decide draw for locked order", async function () {
-      const { smart, seller, buyer, communitier, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, communitier, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -528,7 +420,7 @@ describe("BeeSmart", async function () {
     });
 
     it("new order while locked orders in progress", async function () {
-      const { smart, seller, buyer, communitier, USDT } = await loadFixture(deployBeeSmarts);
+      const { smart, seller, buyer, communitier, USDT } = contracts;
 
       const sellAmount = ethers.parseEther("180");
       await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
@@ -553,5 +445,39 @@ describe("BeeSmart", async function () {
       expect(order[8]).to.equal(await sellerFee(smart, sellAmount));
       expect(order[9]).to.equal(0n);
     });
+
+    // it("rewards share: 3-3-3-3", async function () {
+    //   const { smart, seller, buyer, USDT, communityWallet, agentWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = await loadFixture(deployBeeSmarts);
+
+    //   const communityBalanceBefore = await smart.pendingRewards(communityWallet, USDT.target);
+    //   const agentBalanceBefore = await smart.pendingRewards(agentWallet, USDT.target);
+    //   const globalShareBalanceBefore = await smart.pendingRewards(globalShareWallet, USDT.target);
+    //   const agent1BalanceBefore = await smart.pendingRewards(agent1.address, USDT.target);
+    //   const agent2BalanceBefore = await smart.pendingRewards(agent2.address, USDT.target);
+    //   const agent3BalanceBefore = await smart.pendingRewards(agent3.address, USDT.target);
+    //   const agent4BalanceBefore = await smart.pendingRewards(agent4.address, USDT.target);
+
+    //   await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
+    //   await agentManager.connect(agent2).addAgent(agent3.address, 3, true);
+    //   await agentManager.connect(agent3).addAgent(agent4.address, 3, true);
+
+    //   const sellAmount = ethers.parseEther("5000");
+    //   await smart.connect(seller).makeOrder(USDT.target, sellAmount, buyer.address);
+
+    //   const orderId = await smart.totalOrdersCount();
+    //   await forwardBlockTimestamp(10);
+
+    //   await smart.connect(seller).confirmOrder(orderId);
+
+    //   const communityBalanceAfter = await smart.pendingRewards(communityWallet, USDT.target);
+    //   const agentBalanceAfter = await smart.pendingRewards(agentWallet, USDT.target);
+    //   const globalShareBalanceAfter = await smart.pendingRewards(globalShareWallet, USDT.target);
+    //   const agent1BalanceAfter = await smart.pendingRewards(agent1.address, USDT.target);
+    //   const agent2BalanceAfter = await smart.pendingRewards(agent2.address, USDT.target);
+    //   const agent3BalanceAfter = await smart.pendingRewards(agent3.address, USDT.target);
+    //   const agent4BalanceAfter = await smart.pendingRewards(agent4.address, USDT.target);
+
+
+    // });
   });
 });
