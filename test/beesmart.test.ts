@@ -3,7 +3,7 @@ import {
 } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { ethers } from "hardhat";
 import { expect } from "chai";
-import { Status, airdropRewards, buyerFee, communityFee, deployBeeSmarts, forwardBlockTimestamp, reputationRewards, sellerFee } from "./common";
+import { Status, airdropRewards, buyerFee, communityFee, deployBeeSmarts, disputeWinnerFee, forwardBlockTimestamp, reputationRewards, sellerFee } from "./common";
 
 
 describe("BeeSmart", async function () {
@@ -353,7 +353,8 @@ describe("BeeSmart", async function () {
       await smart.connect(communitier).communityDecide(orderId, 1);
 
       const sellerBalanceAfter = await USDT.balanceOf(seller.address);
-      expect(sellerBalanceBefore).to.equal(sellerBalanceAfter);
+      const disputeFee = await disputeWinnerFee(smart, sellAmount);
+      expect(sellerBalanceBefore).to.equal(sellerBalanceAfter + disputeFee);
 
       const buyerReputationPoints = await Reputation.reputationPoints(buyer.address);
       expect(buyerReputationPoints).to.equal(0n);
@@ -383,7 +384,8 @@ describe("BeeSmart", async function () {
       await smart.connect(communitier).communityDecide(orderId, 0);
 
       const buyerBalanceAfter = await USDT.balanceOf(buyer.address);
-      expect(buyerBalanceAfter - buyerBalanceBefore).to.equal(sellAmount - await buyerFee(smart, sellAmount));
+      const disputeFee = await disputeWinnerFee(smart, sellAmount);
+      expect(buyerBalanceAfter - buyerBalanceBefore).to.equal(sellAmount - await buyerFee(smart, sellAmount) - disputeFee);
 
       const sellerReputationPoints = await Reputation.reputationPoints(seller.address);
       expect(sellerReputationPoints).to.equal(0n);

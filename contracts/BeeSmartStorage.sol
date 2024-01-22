@@ -42,14 +42,15 @@ contract BeeSmartStorage {
     address       public operatorWallet;
     address       public globalShareWallet;
 
-    uint64        public orderStatusDurationSec  = 30 * 60; // 30 minutes waiting for order status
-    uint256       public communityFeeRatio       = 0.2E18;  // fee ratio: 20%
-    uint256       public operatorFeeRatio        = 0.1E18;  // operator ratio 10%
-    uint256       public globalShareFeeRatio     = 0.1E18; // global share fee ratio
-    uint256       public sameLevelFeeRatio       = 0.1E18; // same level fee ratio
-    uint256       public chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio
-    uint256       public chargesBaredSellerRatio = 0.005E18;  // 0.5% seller fee ratio
-    uint256       public reputationRatio         = 1E18; // reputation points ratio:  tradeAmount * reputationRatio = Points
+    uint64        public orderStatusDurationSec; // 30 minutes waiting for order status
+    uint256       public communityFeeRatio;  // fee ratio: 20%
+    uint256       public operatorFeeRatio;  // operator ratio 10%
+    uint256       public globalShareFeeRatio; // global share fee ratio
+    uint256       public sameLevelFeeRatio; // same level fee ratio
+    uint256       public chargesBaredBuyerRatio ;  // 0.5% buyer fee ratio
+    uint256       public chargesBaredSellerRatio;  // 0.5% seller fee ratio
+    uint256       public reputationRatio;      // reputation points ratio:  tradeAmount * reputationRatio = Points
+    uint256       public disputeWinnerFeeRatio;   // dispute fee ratio
 
     EnumerableSet.UintSet lockedOrders;  // all locked orders
     mapping(address => EnumerableSet.UintSet) userLockedOrders;

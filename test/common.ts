@@ -135,6 +135,11 @@ export async function sameLevelBuyerFee(smart: BeeSmart, sellAmount: bigint) {
   return (await buyerFee(smart, sellAmount)) * r / Precision
 }
 
+export async function disputeWinnerFee(smart: BeeSmart, sellAmount: bigint) {
+  const r = await smart.disputeWinnerFeeRatio();
+  return sellAmount * r / Precision;
+}
+
 export async function reputationRewards(smart: BeeSmart, sellAmount: bigint) {
   const r = await smart.reputationRatio();
   return sellAmount * r / Precision;

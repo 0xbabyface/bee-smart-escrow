@@ -69,6 +69,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio
         chargesBaredSellerRatio = 0.005E18;  // 0.5% seller fee ratio
         reputationRatio         = 1E18;
+        disputeWinnerFeeRatio   = 0.03E18;
 
         communityWallet   = _communityWallet;
         operatorWallet      = _agentWallet;
@@ -278,7 +279,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         order.toStatus(Order.Status.CONFIRMED);
 
-        uint256 buyerGotAmount  = releaseToBuyer(order);
+        uint256 buyerGotAmount  = releaseToBuyer(order, false);
 
         // S1: rewards for agents, buyer, seller
         dispatchFees(order.buyerFee, order.payToken, order.buyer);
@@ -303,7 +304,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // this order is handled like being cancelled
             // no reputation nor CANDY reward is granted
             order.toStatus(Order.Status.CONFIRMED);
-            releaseToSeller(order);
+            releaseToSeller(order, false);
         } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
             // both seller and buyer dispute
             // the order is locked, and should waiting for community's decision
@@ -345,7 +346,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // but no reputation nor CANDY granted
             order.toStatus(Order.Status.CONFIRMED);
 
-            releaseToBuyer(order);
+            releaseToBuyer(order, false);
             dispatchFees(order.buyerFee, order.payToken, order.buyer);
             dispatchReputationAndAirdrop(order, false);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
@@ -389,12 +390,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         if (decision == 0 /* Buyer Win */) {
             order.toStatus(Order.Status.BUYERWIN);
-            releaseToBuyer(order);
+            releaseToBuyer(order, true);
+            dispatchFees(order.sellerFee, order.payToken, order.seller);
             dispatchFees(order.buyerFee, order.payToken, order.buyer);
             clearReputation(order.seller);
         } else if (decision == 1 /* Seller Win*/) {
             order.toStatus(Order.Status.SELLERWIN);
-            releaseToSeller(order);
+            releaseToSeller(order, true);
             clearReputation(order.buyer);
         } else { /* set order to NORMAL */
             order.toStatus(Order.Status.NORMAL);
@@ -429,9 +431,16 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
 // --------------------- internal functions -------------------------------
-    function releaseToBuyer(Order.Record storage order) internal returns(uint256) {
+    function releaseToBuyer(Order.Record storage order, bool chareDisputeWinnerFee) internal returns(uint256) {
         uint256 buyerFee     = order.sellAmount * chargesBaredBuyerRatio / RatioPrecision;
         uint256 buyerGotAmount = order.sellAmount - buyerFee;
+
+        if (chareDisputeWinnerFee) {
+            uint256 disputeWinnerFee = order.sellAmount * disputeWinnerFeeRatio / RatioPrecision;
+            buyerGotAmount -= disputeWinnerFee;
+
+            pendingRewards[communityWallet][order.payToken] += disputeWinnerFee;
+        }
 
         order.buyerFee = buyerFee;
 
@@ -442,8 +451,16 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         return buyerGotAmount;
     }
 
-    function releaseToSeller(Order.Record storage order) internal {
-        IERC20Metadata(order.payToken).transfer(order.seller, order.sellAmount + order.sellerFee);
+    function releaseToSeller(Order.Record storage order, bool chareDisputeWinnerFee) internal {
+        uint256 sellerGotAmount = order.sellAmount + order.sellerFee;
+        if (chareDisputeWinnerFee) {
+            uint256 disputeWinnerFee = order.sellAmount * disputeWinnerFeeRatio / RatioPrecision;
+            sellerGotAmount -= disputeWinnerFee;
+
+            pendingRewards[communityWallet][order.payToken] += disputeWinnerFee;
+        }
+
+        IERC20Metadata(order.payToken).transfer(order.seller, sellerGotAmount);
         order.sellerFee = 0;
     }
 
