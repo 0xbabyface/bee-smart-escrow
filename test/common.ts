@@ -16,7 +16,7 @@ export enum Status {
 export const Precision = ethers.parseEther("1");
 
 export async function deployBeeSmarts() {
-  const [owner, buyer, seller, communitier, agent4, agent3, agent2, agent1, globalShare] = await ethers.getSigners();
+  const [owner, buyer, seller, communitier, operator, globalShare, agent4, agent3, agent2, agent1] = await ethers.getSigners();
 
   const USDT = await ethers.deployContract("TestUSDT");
   await USDT.waitForDeployment();
@@ -28,7 +28,7 @@ export async function deployBeeSmarts() {
   let smartCommunities: string[] = [owner.address];
   let payTokens: string[] = [USDT.target as string, USDC.target as string];
   let communityWallet = communitier.address;
-  let agentWallet = agent3.address;
+  let operatorWallet = operator.address;
   let globalShareWallet = globalShare.address;
   let agentManagerOwner = owner.address;
   let adminship = owner.address;
@@ -50,7 +50,7 @@ export async function deployBeeSmarts() {
     smartCommunities,
     payTokens,
     communityWallet,
-    agentWallet,
+    operatorWallet,
     globalShareWallet,
     AgentManagerProxy.target
   ]);
@@ -81,7 +81,7 @@ export async function deployBeeSmarts() {
   const agentManager = await ethers.getContractAt("AgentManager", AgentManagerProxy.target);
   await agentManager.addTopAgent(agent1.address, 3, true);
 
-  return { smart, agentManager, buyer, seller, agent4, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet, agentWallet, globalShareWallet };
+  return { smart, agentManager, buyer, seller, agent4, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet, operatorWallet, globalShareWallet };
 }
 
 export async function forwardBlockTimestamp(forwardSecs: number) {
@@ -106,12 +106,12 @@ export async function sellerFee(smart: BeeSmart, sellAmount: bigint) {
 }
 
 export async function agentSellerFee(smart: BeeSmart, sellAmount: bigint) {
-  const r = await smart.agentFeeRatio();
+  const r = await smart.operatorFeeRatio();
   return (await sellerFee(smart, sellAmount)) * r / Precision;
 }
 
 export async function agentBuyerFee(smart: BeeSmart, sellAmount: bigint) {
-  const r = await smart.agentFeeRatio();
+  const r = await smart.operatorFeeRatio();
   return (await buyerFee(smart, sellAmount)) * r / Precision;
 }
 

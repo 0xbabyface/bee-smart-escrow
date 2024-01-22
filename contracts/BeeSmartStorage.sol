@@ -39,12 +39,12 @@ contract BeeSmartStorage {
     AgentManager  public agentMgr;
 
     address       public communityWallet;
-    address       public agentsWallet;
+    address       public operatorWallet;
     address       public globalShareWallet;
 
     uint64        public orderStatusDurationSec  = 30 * 60; // 30 minutes waiting for order status
     uint256       public communityFeeRatio       = 0.2E18;  // fee ratio: 20%
-    uint256       public agentFeeRatio           = 0.1E18;  // top agent ratio 10%
+    uint256       public operatorFeeRatio        = 0.1E18;  // operator ratio 10%
     uint256       public globalShareFeeRatio     = 0.1E18; // global share fee ratio
     uint256       public sameLevelFeeRatio       = 0.1E18; // same level fee ratio
     uint256       public chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio

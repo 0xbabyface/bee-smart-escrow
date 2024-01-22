@@ -81,7 +81,7 @@ contract AgentManager is Ownable, Initializable {
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
 
-        walletMapping[newAgent.selfId] = RootWallet;
+        walletMapping[newAgent.selfId] = agent;
 
         emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
     }
@@ -207,30 +207,31 @@ contract AgentManager is Ownable, Initializable {
     function getUpperAgents(address fromAgent) external view returns(RewardAgent[] memory) {
         uint count;
         address temp = fromAgent;
-        for (uint i = 0; i < 4; ++i) {
+        do {
             if (!agents[temp].removed) ++count;
-            if (agents[temp].parentWallet == RootWallet) break;
+            if (agents[temp].parentWallet  == RootWallet) break;
 
             temp = agents[temp].parentWallet;
-        }
+        } while(count < 4);
 
         RewardAgent[] memory upper = new RewardAgent[](count);
         if (count > 0) {
-            upper[0] = RewardAgent(
-                fromAgent,
-                rewardRatioForStarLevel(agents[fromAgent].starLevel, StarLevel.NoneStar)
-            );
-            temp = agents[fromAgent].parentWallet;
-            for (uint i = 1; i < count; ++i) {
-                if (agents[temp].parentWallet == RootWallet) break;
-
-                upper[i] = RewardAgent(
-                    agents[temp].selfWallet,
-                    rewardRatioForStarLevel(agents[temp].starLevel, agents[upper[i - 1].wallet].starLevel)
-                );
+            uint i;
+            temp = fromAgent;
+            do {
+                if (!agents[temp].removed) {
+                    upper[i] = RewardAgent(
+                        agents[temp].selfWallet,
+                        rewardRatioForStarLevel(
+                            agents[temp].starLevel,
+                            i == 0 ? StarLevel.NoneStar : agents[upper[i - 1].wallet].starLevel)
+                    );
+                    ++i;
+                }
+                if (agents[temp].parentWallet  == RootWallet) break;
 
                 temp = agents[temp].parentWallet;
-            }
+            } while (i < count);
         }
 
         return upper;

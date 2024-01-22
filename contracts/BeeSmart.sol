@@ -63,7 +63,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         orderStatusDurationSec  = 30 * 60;   // 30 minutes waiting for order status
         communityFeeRatio       = 0.2E18;    // fee ratio: 20%
-        agentFeeRatio           = 0.1E18;    // top agent ratio 10%
+        operatorFeeRatio           = 0.1E18;    // top agent ratio 10%
         globalShareFeeRatio     = 0.1E18;    // global share fee ratio
         sameLevelFeeRatio       = 0.1E18;    // same level fee ratio
         chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio
@@ -71,7 +71,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputationRatio         = 1E18;
 
         communityWallet   = _communityWallet;
-        agentsWallet      = _agentWallet;
+        operatorWallet      = _agentWallet;
         globalShareWallet = _globalWallet;
 
         agentMgr = AgentManager(_agtMgr);
@@ -89,10 +89,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     function setAgentsWallet(address w) external onlyRole(AdminRole) {
         require(w != address(0), "wallet is null");
-        require(w != agentsWallet, "same wallet");
+        require(w != operatorWallet, "same wallet");
 
-        address oldWallet = agentsWallet;
-        agentsWallet = w;
+        address oldWallet = operatorWallet;
+        operatorWallet = w;
         emit AgentsWalletSet(msg.sender, oldWallet, w);
     }
 
@@ -101,7 +101,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(w != globalShareWallet, "same wallet");
 
         address oldWallet = globalShareWallet;
-        agentsWallet = w;
+        operatorWallet = w;
         emit GlobalShareWalletSet(msg.sender, oldWallet, w);
     }
 
@@ -113,7 +113,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         );
 
         communityFeeRatio = communityRatio;
-        agentFeeRatio = agentRatio;
+        operatorFeeRatio = agentRatio;
         globalShareFeeRatio = globalRatio;
         sameLevelFeeRatio = sameLevelRatio;
 
@@ -208,6 +208,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(sellAmount > 0, "sell amount is zero");
         require(userLockedOrders[msg.sender].length() == 0, "seller has locked order");
         require(userLockedOrders[buyer].length() == 0, "buyer has locked order");
+        require(boundAgents[buyer] != address(0), "buyer not registered");
+        require(boundAgents[msg.sender] != address(0), "seller not registered");
 
         require(msg.sender != buyer, "can not sell to self");
 
@@ -456,22 +458,22 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         if (totalFee == 0) return;
         // dispatch fee to agents and community
         uint256 communityFee = totalFee * communityFeeRatio / RatioPrecision;
-        uint256 agentFee     = totalFee * agentFeeRatio / RatioPrecision;
+        uint256 operatorFee  = totalFee * operatorFeeRatio / RatioPrecision;
         uint256 globalFee    = totalFee * globalShareFeeRatio / RatioPrecision;
         uint256 sameLevelFee = totalFee * sameLevelFeeRatio / RatioPrecision;
 
         pendingRewards[communityWallet][payToken]   += communityFee;
-        pendingRewards[agentsWallet][payToken]      += agentFee;
+        pendingRewards[operatorWallet][payToken]    += operatorFee;
         pendingRewards[globalShareWallet][payToken] += globalFee;
 
-        RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(trader);
+        RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(boundAgents[trader]);
         uint len = upperAgents.length;
         uint agentTotalFee = totalFee / 2; // 50% fee share to agents
         uint leftFee = agentTotalFee;
         for (uint i = 0; i < len; ++i) {
             RewardAgent memory agt = upperAgents[i];
             if (agt.feeRatio != 0) {
-                uint256 r = agentTotalFee * agt.feeRatio / RatioPrecision;
+                uint256 r = 2 * agentTotalFee * agt.feeRatio / RatioPrecision;
                 pendingRewards[agt.wallet][payToken] += r;
                 leftFee -= r;
             } else {
@@ -483,11 +485,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
 
         if (leftFee > 0) {
-            pendingRewards[agentsWallet][payToken] += leftFee;
+            pendingRewards[operatorWallet][payToken] += leftFee;
         }
 
         if (sameLevelFee > 0) {
-            pendingRewards[agentsWallet][payToken] += sameLevelFee;
+            pendingRewards[operatorWallet][payToken] += sameLevelFee;
         }
     }
 

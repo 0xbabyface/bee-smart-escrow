@@ -4,7 +4,7 @@ let smartAdmins: string[] = [];
 let smartCommunities: string[] = [];
 let payTokens: string[] = [];
 let communityWallet = "";
-let agentWallet = "";
+let operatorWallet = "";
 let globalShareWallet = "";
 let agentManagerOwner = "";
 let adminship = "";
@@ -27,7 +27,7 @@ async function main() {
   payTokens.push(USDC.target as string);
 
   communityWallet = owner.address;
-  agentWallet = owner.address;
+  operatorWallet = owner.address;
   globalShareWallet = owner.address;
   agentManagerOwner = owner.address;
   adminship = owner.address;
@@ -51,7 +51,7 @@ async function main() {
       smartCommunities,
       payTokens,
       communityWallet,
-      agentWallet,
+      operatorWallet,
       globalShareWallet,
       AgentManagerProxy.target
     ]
