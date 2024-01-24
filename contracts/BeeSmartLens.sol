@@ -5,24 +5,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./components/IReputation.sol";
 import "./components/AgentManager.sol";
 import "./libs/Order.sol";
-// import "./IBeeSmart.sol";
+import "./IBeeSmart.sol";
 
-interface IBeeSmart {
-    function getLengthOfSellOrders(address) external view returns(uint256);
-    function getLengthOfBuyOrders(address) external view returns(uint256);
-    function sellOrdersOfUser(address, uint256) external view returns(uint256);
-    function buyOrdersOfUser(address, uint256) external view returns(uint256);
-    function orders(uint256) external view returns(Order.Record memory);
-    function orderRewards(uint256) external view returns(Order.Rewards memory);
-    function reputation() external view returns(IReputation);
-    function airdropPoints(address) external view returns(uint256);
-    function getSupportTokens() external view returns(address[] memory);
-    function rebateCandyRewards(uint256) external view returns(uint256);
-    function getAllLockedOrderIds() external view returns(uint256[] memory);
-    function getUserLockedOrderIds(address user) external view returns(uint256[] memory);
-    function boundAgents(address user) external view returns(address);
-    function agentMgr() external view returns(AgentManager);
-}
 
 enum FilterType { SellOngoing, BuyOngoing, SellHistory, BuyHistory}
 contract BeeSmartLens {
@@ -252,14 +236,13 @@ contract BeeSmartLens {
         uint256 airdropCount;
         uint256 reputationCount;
         uint256 totalTrades;
-        uint256 rebateAmount; // rebate token is Candy.
         AssetBalance[] assetsBalance;
     }
 
     function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
         IReputation reputation = smart.reputation();
-        address boundAgent = smart.boundAgents(wallet);
-        uint96 relationId = smart.agentMgr().getAgentId(boundAgent);
+
+        uint96 relationId = smart.boundAgents(wallet);
         address[] memory tradableTokens = smart.getSupportTokens();
 
         UserInfo memory info = UserInfo({
@@ -267,11 +250,8 @@ contract BeeSmartLens {
             airdropCount: smart.airdropPoints(wallet),
             reputationCount: reputation.reputationPoints(wallet),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),
-            rebateAmount: 0,
             assetsBalance: new AssetBalance[](tradableTokens.length)
         });
-
-        info.rebateAmount = smart.rebateCandyRewards(relationId);
 
         for (uint i = 0; i < tradableTokens.length; ++i) {
             address token = tradableTokens[i];

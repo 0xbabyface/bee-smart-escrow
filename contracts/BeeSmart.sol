@@ -88,7 +88,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
 
-    function setAgentsWallet(address w) external onlyRole(AdminRole) {
+    function setOperatorWallet(address w) external onlyRole(AdminRole) {
         require(w != address(0), "wallet is null");
         require(w != operatorWallet, "same wallet");
 
@@ -182,11 +182,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     // bind relationship
     function bindRelationship(uint96 parentId) external {
-        require(boundAgents[msg.sender] == address(0), "already bound");
+        require(boundAgents[msg.sender] == 0, "already bound");
         require(agentMgr.isAgentId(parentId), "airdrop code invalid");
 
-        address parentWallet = agentMgr.walletMapping(parentId);
-        boundAgents[msg.sender] = parentWallet;
+        boundAgents[msg.sender] = parentId;
 
         reputation.onRelationBound(msg.sender);
     }
@@ -209,8 +208,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(sellAmount > 0, "sell amount is zero");
         require(userLockedOrders[msg.sender].length() == 0, "seller has locked order");
         require(userLockedOrders[buyer].length() == 0, "buyer has locked order");
-        require(boundAgents[buyer] != address(0), "buyer not registered");
-        require(boundAgents[msg.sender] != address(0), "seller not registered");
+        require(boundAgents[buyer] != 0, "buyer not registered");
+        require(boundAgents[msg.sender] != 0, "seller not registered");
 
         require(msg.sender != buyer, "can not sell to self");
 
@@ -444,7 +443,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         order.buyerFee = buyerFee;
 
-        uint96 agentId = agentMgr.getAgentId(boundAgents[order.buyer]);
+        uint96 agentId = boundAgents[order.buyer];
         agentTradeVolumn[agentId][order.payToken] += order.sellAmount;
 
         IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
@@ -483,7 +482,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         pendingRewards[operatorWallet][payToken]    += operatorFee;
         pendingRewards[globalShareWallet][payToken] += globalFee;
 
-        RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(boundAgents[trader]);
+        RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(
+            agentMgr.agentId2Wallet(boundAgents[trader])
+        );
         uint len = upperAgents.length;
         uint agentTotalFee = totalFee / 2; // 50% fee share to agents
         uint leftFee = agentTotalFee;
