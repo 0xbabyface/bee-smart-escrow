@@ -63,8 +63,11 @@ async function main() {
   const BeeSmartLens = await ethers.deployContract("BeeSmartLens");
   await BeeSmartLens.waitForDeployment();
 
+  const ManagementLens = await ethers.deployContract("ManagementLens");
+  await BeeSmartLens.waitForDeployment();
+
   const Reputation = await ethers.deployContract("Reputation", [BeeSmartProxy.target]);
-  await Reputation.waitForDeployment();
+  await ManagementLens.waitForDeployment();
 
   // to initialize system
   const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);
@@ -77,6 +80,7 @@ async function main() {
       "Reputation":         "${Reputation.target}",
       "BeeSmart":           "${BeeSmart.target}",
       "BeeSmartLens":       "${BeeSmartLens.target}",
+      "ManagementLens":     "${ManagementLens.target}",
       "TestUSDT":           "${USDT.target}",
       "TestUSDC":           "${USDC.target}"
     }

@@ -25,7 +25,7 @@ contract ManagementLens {
         uint256   disputeWinnerFeeRatio;    // 争议处理费比例:  交易额 * 比例
     }
 
-    enum Role {Common, Admin, Community, Agent }
+    enum Role {Common, Admin, Community, Agent, TopAgent }
     struct RewardInfo {
         address tokenAddress;
         string  symbol;
@@ -42,7 +42,14 @@ contract ManagementLens {
         Role r;
         if (smart.hasRole(smart.AdminRole(), wallet)) r = Role.Admin;
         else if (smart.hasRole(smart.CommunityRole(), wallet)) r = Role.Community;
-        else if (smart.agentMgr().getAgentId(wallet) != 0) r = Role.Agent;
+
+        Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
+        if (agent.selfId != 0) {
+            if (agent.parentId == smart.agentMgr().RootId())
+                r = Role.TopAgent;
+            else
+                r = Role.Agent;
+        }
 
         UserInfo memory info = UserInfo({
             role: r,
@@ -94,19 +101,19 @@ contract ManagementLens {
     struct AgentInfo {
         uint96     selfId;            // 代理ID
         address    selfWallet;        // 钱包地址
-        address    parentWallet;      // 父代理ID
+        uint96     parentId;          // 父代理ID
         StarLevel  starLevel;         // 星级
         bool       canAddSubAgent;    // 是否允许增加下级
         bool       removed;           // 是否已经被删除
         address[]  subAgents;         // 子代理账号
     }
     function getAgentInfo(IBeeSmart smart, address wallet) external view returns(AgentInfo memory) {
-        Agent memory agent = smart.agentMgr().getAgentBasic(wallet);
+        Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
 
         AgentInfo memory a = AgentInfo({
             selfId: agent.selfId,
             selfWallet: agent.selfWallet,
-            parentWallet: agent.parentWallet,
+            parentId: agent.parentId,
             starLevel: agent.starLevel,
             canAddSubAgent: agent.canAddSubAgent,
             removed: agent.removed,

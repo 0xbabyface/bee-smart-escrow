@@ -183,7 +183,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     // bind relationship
     function bindRelationship(uint96 parentId) external {
         require(boundAgents[msg.sender] == 0, "already bound");
-        require(agentMgr.isAgentId(parentId), "airdrop code invalid");
+        require(agentMgr.isAgentId(parentId), "agent id invalid");
 
         boundAgents[msg.sender] = parentId;
 

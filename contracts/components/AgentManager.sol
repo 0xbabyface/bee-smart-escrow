@@ -8,7 +8,7 @@ enum StarLevel { NoneStar, Star1, Star2, Star3 }
 struct Agent {
     uint96                   selfId;        // self id
     address                  selfWallet;        // wallet address
-    address                  parentWallet;      // parent id
+    uint96                   parentId;      // parent id
     StarLevel                starLevel;     // star level
     bool                     canAddSubAgent;// if this agent can has its own sub agent
     bool                     removed;
@@ -22,6 +22,7 @@ struct RewardAgent {
 
 contract AgentManager is Ownable, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.UintSet;
     uint96  public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
 
@@ -29,6 +30,8 @@ contract AgentManager is Ownable, Initializable {
     mapping(address => Agent) agents;
     // wallet address => wallets of sub agents
     mapping(address => EnumerableSet.AddressSet) subAgents;
+    // wallets of global agents
+    EnumerableSet.UintSet globalAgentsId;
     // agent id => agent wallet
     mapping(uint96 => address) public agentId2Wallet;
     // star level => share fee ratio
@@ -80,7 +83,7 @@ contract AgentManager is Ownable, Initializable {
         Agent storage newAgent = agents[agent];
         newAgent.selfId         = nextId();
         newAgent.selfWallet     = agent;
-        newAgent.parentWallet   = RootWallet;
+        newAgent.parentId       = RootId;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
 
@@ -103,7 +106,7 @@ contract AgentManager is Ownable, Initializable {
         Agent storage newAgent  = agents[subAgent];
         newAgent.selfId         = nextId();
         newAgent.selfWallet     = subAgent;
-        newAgent.parentWallet   = upAgent.selfWallet;
+        newAgent.parentId       = upAgent.selfId;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
 
@@ -132,7 +135,7 @@ contract AgentManager is Ownable, Initializable {
     function setAgentStarLevel(address agent, StarLevel newStarLevel) validStarLevel(newStarLevel) external {
         require(
             subAgents[msg.sender].contains(agent) ||
-            agents[msg.sender].parentWallet == RootWallet,
+            agents[msg.sender].parentId == RootId,
             "not your sub agent"
         );
         require(
@@ -159,7 +162,7 @@ contract AgentManager is Ownable, Initializable {
     function setAgentAbility(address agent, bool newAbility) external {
         require(
             subAgents[msg.sender].contains(agent) ||
-            agents[msg.sender].parentWallet == RootWallet,
+            agents[msg.sender].parentId == RootId,
             "not your sub agent"
         );
 
@@ -181,6 +184,9 @@ contract AgentManager is Ownable, Initializable {
         subAgents[msg.sender].remove(agent);
         agents[agent].removed = true;
 
+        // just remove global agent, if not exist, do nothing
+        globalAgentsId.remove(agents[agent].selfId);
+
         emit AgentRemoved(msg.sender, agent);
     }
 
@@ -199,6 +205,62 @@ contract AgentManager is Ownable, Initializable {
         emit AgentRemoved(msg.sender, agent);
     }
 
+    /**
+    * to add a wallet as global agent
+     */
+    function addGlobalAgent(address wallet) external {
+        require(
+            agents[msg.sender].parentId == RootId ||
+            owner() == msg.sender,
+            "only top agent or admin"
+        );
+        uint256 agentId = agents[wallet].selfId;
+        require(agentId != 0, "agent not exist");
+        require(!agents[wallet].removed, "wallet removed");
+        require(!globalAgentsId.contains(agentId), "alread set");
+
+        globalAgentsId.add(agentId);
+    }
+
+    function removeGlobalAgent(address wallet) external {
+        require(
+            agents[msg.sender].parentId == RootId ||
+            owner() == msg.sender,
+            "only top agent or admin"
+        );
+        uint256 agentId = agents[wallet].selfId;
+        require(agentId != 0, "agent not exist");
+        require(globalAgentsId.contains(agentId), "not global agent");
+
+        globalAgentsId.remove(agentId);
+    }
+
+    function isGlobalAgent(address wallet) external view returns(bool) {
+        return globalAgentsId.contains(agents[wallet].selfId);
+    }
+
+    function getGlobalAgents(uint256 offset, uint256 limit) external view returns(address[] memory) {
+        uint256 len = globalAgentsId.length();
+        uint256 start;
+        uint256 end;
+        if (offset >= len) { start = 0; end = 0; }
+        else if (offset + limit >= len) {
+            start = offset;
+            end = len;
+        } else {
+            start = offset;
+            end = offset + limit;
+        }
+
+        address[] memory gAgents = new address[](end - start);
+        for (uint256 i = start; i < end; ++i) {
+            uint96 aid = uint96(globalAgentsId.at(i));
+            gAgents[i - start] = agentId2Wallet[aid];
+        }
+
+        return gAgents;
+    }
+
 // -------------- view functions -----------------------------------------
     function isAgentId(uint96 aid) external view returns(bool) {
         address agent = agentId2Wallet[aid];
@@ -212,8 +274,8 @@ contract AgentManager is Ownable, Initializable {
     // to get agent id
     function getAgentId(address agentAddress) external view returns(uint96) {
         address temp = agentAddress;
-        while(agents[temp].removed && agents[temp].parentWallet != RootWallet) {
-            temp = agents[temp].parentWallet;
+        while(agents[temp].removed && agents[temp].parentId != RootId) {
+            temp = agentId2Wallet[agents[temp].parentId];
         }
 
         return agents[temp].selfId;
@@ -227,9 +289,9 @@ contract AgentManager is Ownable, Initializable {
         address temp = fromAgent;
         do {
             if (!agents[temp].removed) ++count;
-            if (agents[temp].parentWallet  == RootWallet) break;
+            if (agents[temp].parentId  == RootId) break;
 
-            temp = agents[temp].parentWallet;
+            temp = agentId2Wallet[agents[temp].parentId];
         } while(count < 4);
 
         RewardAgent[] memory upper = new RewardAgent[](count);
@@ -246,9 +308,9 @@ contract AgentManager is Ownable, Initializable {
                     );
                     ++i;
                 }
-                if (agents[temp].parentWallet  == RootWallet) break;
+                if (agents[temp].parentId  == RootId) break;
 
-                temp = agents[temp].parentWallet;
+                temp = agentId2Wallet[agents[temp].parentId];
             } while (i < count);
         }
 
@@ -259,8 +321,12 @@ contract AgentManager is Ownable, Initializable {
         return shareFeeRatio[currentLevel] - shareFeeRatio[preLevel];
     }
 
-    function getAgentBasic(address wallet) external view returns(Agent memory) {
+    function getAgentByWallet(address wallet) external view returns(Agent memory) {
         return agents[wallet];
+    }
+
+    function getAgentById(uint96 aid) external view returns(Agent memory) {
+        return agents[agentId2Wallet[aid]];
     }
 
     function getSubAgents(address wallet) external view returns(address[] memory) {
