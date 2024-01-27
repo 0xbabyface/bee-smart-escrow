@@ -89,7 +89,7 @@ contract ManagementLens {
             operatorFeeRatio:        smart.operatorFeeRatio(),
             globalShareFeeRatio:     smart.globalShareFeeRatio(),
             sameLevelFeeRatio:       smart.sameLevelFeeRatio(),
-            chargesBaredBuyerRatio:  smart.charegesBaredBuyerRatio(),
+            chargesBaredBuyerRatio:  smart.chargesBaredBuyerRatio(),
             chargesBaredSellerRatio: smart.chargesBaredSellerRatio(),
             reputationRatio:         smart.reputationRatio(),
             disputeWinnerFeeRatio:   smart.disputeWinnerFeeRatio()

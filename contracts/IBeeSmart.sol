@@ -27,7 +27,7 @@ interface IBeeSmart {
     function operatorFeeRatio() external view returns(uint256);
     function globalShareFeeRatio() external view returns(uint256);
     function sameLevelFeeRatio() external view returns(uint256);
-    function charegesBaredBuyerRatio() external view returns(uint256);
+    function chargesBaredBuyerRatio() external view returns(uint256);
     function chargesBaredSellerRatio() external view returns(uint256);
     function reputationRatio() external view returns(uint256);
     function disputeWinnerFeeRatio() external view returns(uint256);
