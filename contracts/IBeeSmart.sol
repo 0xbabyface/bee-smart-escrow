@@ -35,4 +35,5 @@ interface IBeeSmart {
     function AdminRole() external view returns(bytes32);
     function CommunityRole() external view returns(bytes32);
     function pendingRewards(address owner, address payToken) external view returns(uint256);
+    function totalOrdersCount() external view returns(uint256);
 }

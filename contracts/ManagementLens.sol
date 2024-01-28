@@ -38,6 +38,53 @@ contract ManagementLens {
         RewardInfo[] rewards;
     }
 
+    struct TokenInfo {
+        address tokenAddress;
+        string symbol;
+        uint8 decimals;
+    }
+
+    function getSupportTokens(IBeeSmart smart) external view returns(TokenInfo[] memory) {
+        address[] memory supportTokens = smart.getSupportTokens();
+        uint len = supportTokens.length;
+        TokenInfo[] memory tokens = new TokenInfo[](len);
+        for (uint i = 0; i < len; ++i) {
+            IERC20Metadata token = IERC20Metadata(supportTokens[i]);
+
+            tokens[i] = TokenInfo({
+                tokenAddress: address(token),
+                symbol: token.symbol(),
+                decimals: token.decimals()
+            });
+        }
+        return tokens;
+    }
+
+    function getHistoryOrders(IBeeSmart smart, uint offset, uint limit) external view returns(Order.Record[] memory) {
+        uint256 totalOrders = smart.totalOrdersCount();
+        uint256 start;
+        uint256 end;
+        if (totalOrders >= offset + limit) {
+            start = totalOrders - offset;
+            end = start - limit;
+        } else if (totalOrders >= offset) {
+            start = totalOrders - offset;
+            end = 1;
+        } else {
+            start = 0;
+            end = 0;
+        }
+
+        Order.Record[] memory records = new Order.Record[](start - end);
+        uint j;
+        for (uint i = start; i > end; --i) {
+            records[j] = smart.orders(i);
+            ++j;
+        }
+
+        return records;
+    }
+
     function getRole(IBeeSmart smart, address wallet) external view returns(UserInfo memory) {
         Role r;
         if (smart.hasRole(smart.AdminRole(), wallet)) r = Role.Admin;
@@ -105,6 +152,7 @@ contract ManagementLens {
         StarLevel  starLevel;         // 星级
         bool       canAddSubAgent;    // 是否允许增加下级
         bool       removed;           // 是否已经被删除
+        bool       isGlobalAgent;     // 是否全球代理
         address[]  subAgents;         // 子代理账号
     }
     function getAgentInfo(IBeeSmart smart, address wallet) external view returns(AgentInfo memory) {
@@ -117,6 +165,7 @@ contract ManagementLens {
             starLevel: agent.starLevel,
             canAddSubAgent: agent.canAddSubAgent,
             removed: agent.removed,
+            isGlobalAgent: smart.agentMgr().isGlobalAgent(wallet),
             subAgents: smart.agentMgr().getSubAgents(wallet)
         });
 
