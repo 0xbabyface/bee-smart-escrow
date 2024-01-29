@@ -1,4 +1,4 @@
 
 import * as TT from "../deploy_info.json";
 
-export const contracts = TT.local;
+export const contracts = TT.mumbai;

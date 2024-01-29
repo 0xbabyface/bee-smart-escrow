@@ -29,6 +29,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event ShareFeeRatioSet(address indexed admin, uint256 communityRatio, uint256 agentRatio, uint256 globalRatio, uint256 sameLevelRatio);
     event RoleSet(address indexed admin, bytes32 role, address account, bool toGrant);
     event ReputationRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
+    event DisputeWinnerFeeRatioSet(address indexed admin, uint256 oldRatio, uint256 newRatio);
+    event TraderFeeRatioSet(address indexed admin, uint256 oldSellerFeeRatio, uint256 newSellerFeeRatio, uint256 oldBuyerFeeRatio, uint256 newBuyerFeeRatio);
 
     event ReputationSet(address indexed reputation);
     event AgentManagerSet(address indexed agtManager);
@@ -138,6 +140,28 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint256 oldRatio = reputationRatio;
         reputationRatio = r;
         emit ReputationRatioSet(msg.sender, oldRatio, r);
+    }
+    // set dispute winner fee ratio
+    function setDisputeWinnerFeeRatio(uint256 r) external onlyRole(AdminRole) {
+        require(0 <= r && r <= 1E18, "fee ratio invalid");
+        uint256 oldRatio = disputeWinnerFeeRatio;
+        disputeWinnerFeeRatio = r;
+        emit DisputeWinnerFeeRatioSet(msg.sender, oldRatio, r);
+    }
+
+    // set charge traders fee
+    function setTraderFeeRatio(uint sellerFeeRatio, uint256 buyerFeeRatio) external onlyRole(AdminRole) {
+        require(0 <= sellerFeeRatio && sellerFeeRatio <= 1E18, "seller fee ratio invalid");
+        require(0 <= buyerFeeRatio && buyerFeeRatio <= 1E18, "buyer fee ratio invalid");
+
+        uint256 oldSellerFee = chargesBaredSellerRatio;
+        uint256 oldBuyerFee = chargesBaredBuyerRatio;
+
+        chargesBaredSellerRatio = sellerFeeRatio;
+        chargesBaredBuyerRatio = buyerFeeRatio;
+
+        emit TraderFeeRatioSet(msg.sender, oldSellerFee, sellerFeeRatio, oldBuyerFee, buyerFeeRatio);
+
     }
 
     // add tradable tokens

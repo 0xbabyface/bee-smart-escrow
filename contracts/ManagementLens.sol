@@ -60,7 +60,7 @@ contract ManagementLens {
         return tokens;
     }
 
-    function getHistoryOrders(IBeeSmart smart, uint offset, uint limit) external view returns(Order.Record[] memory) {
+    function getHistoryOrders(IBeeSmart smart, uint offset, uint limit) external view returns(uint256, Order.Record[] memory) {
         uint256 totalOrders = smart.totalOrdersCount();
         uint256 start;
         uint256 end;
@@ -82,7 +82,7 @@ contract ManagementLens {
             ++j;
         }
 
-        return records;
+        return (totalOrders, records);
     }
 
     function getRole(IBeeSmart smart, address wallet) external view returns(UserInfo memory) {

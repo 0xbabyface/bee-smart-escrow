@@ -5,7 +5,7 @@ async function main() {
   const BeeSmart = await ethers.deployContract("BeeSmart");
   await BeeSmart.waitForDeployment();
 
-  const proxy = await ethers.getContractAt("BeeSmartProxy", contracts.BeeSmartProxy);
+  const proxy = await ethers.getContractAt("CommonProxy", contracts.BeeSmartProxy);
   let tx = await proxy.setImplementation(BeeSmart.target, "0x");
   await tx.wait();
 
