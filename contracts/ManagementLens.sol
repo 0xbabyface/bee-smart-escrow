@@ -69,7 +69,7 @@ contract ManagementLens {
             end = start - limit;
         } else if (totalOrders >= offset) {
             start = totalOrders - offset;
-            end = 1;
+            end = 0;
         } else {
             start = 0;
             end = 0;
@@ -98,28 +98,24 @@ contract ManagementLens {
                 r = Role.Agent;
         }
 
+        address[] memory supportTokens = smart.getSupportTokens();
+        uint len = supportTokens.length;
+        RewardInfo[] memory rewards = new RewardInfo[](len);
+        for (uint i = 0; i < len; ++i) {
+            IERC20Metadata token = IERC20Metadata(supportTokens[i]);
+
+            rewards[i] = RewardInfo({
+                tokenAddress:   address(token),
+                symbol:         token.symbol(),
+                decimals:       token.decimals(),
+                pendingRewards: smart.pendingRewards(wallet, address(token))
+            });
+        }
+
         UserInfo memory info = UserInfo({
             role: r,
-            rewards: new RewardInfo[](0)
+            rewards: rewards
         });
-
-        if (r != Role.Common) {
-            address[] memory supportTokens = smart.getSupportTokens();
-            uint len = supportTokens.length;
-            RewardInfo[] memory rewards = new RewardInfo[](len);
-            for (uint i = 0; i < len; ++i) {
-                IERC20Metadata token = IERC20Metadata(supportTokens[i]);
-
-                rewards[i] = RewardInfo({
-                    tokenAddress: address(token),
-                    symbol: token.symbol(),
-                    decimals: token.decimals(),
-                    pendingRewards: smart.pendingRewards(wallet, address(token))
-                });
-            }
-
-            info.rewards = rewards;
-        }
 
         return info;
     }
@@ -159,14 +155,14 @@ contract ManagementLens {
         Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
 
         AgentInfo memory a = AgentInfo({
-            selfId: agent.selfId,
-            selfWallet: agent.selfWallet,
-            parentId: agent.parentId,
-            starLevel: agent.starLevel,
+            selfId:         agent.selfId,
+            selfWallet:     agent.selfWallet,
+            parentId:       agent.parentId,
+            starLevel:      agent.starLevel,
             canAddSubAgent: agent.canAddSubAgent,
-            removed: agent.removed,
-            isGlobalAgent: smart.agentMgr().isGlobalAgent(wallet),
-            subAgents: smart.agentMgr().getSubAgents(wallet)
+            removed:        agent.removed,
+            isGlobalAgent:  smart.agentMgr().isGlobalAgent(wallet),
+            subAgents:      smart.agentMgr().getSubAgents(wallet)
         });
 
         return a;

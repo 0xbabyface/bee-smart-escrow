@@ -13,6 +13,8 @@ async function main() {
   console.log(`chargesBaredBuyerRatio:    ${ethers.formatEther(await smart.chargesBaredBuyerRatio())}`);
   console.log(`chargesBaredSellerRatio:   ${ethers.formatEther(await smart.chargesBaredSellerRatio())}`);
   console.log(`reputationRatio:           ${ethers.formatEther(await smart.reputationRatio())}`)
+
+  console.log(`hasRole: ${await smart.hasRole(await smart.AdminRole(), "0x81bD01D0A9E8e8E40FAf22B779Bb21BaFbf8f7AC")}`)
 }
 
 main();
