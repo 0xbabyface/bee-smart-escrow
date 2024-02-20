@@ -12,5 +12,5 @@ interface IReputation {
 
     function takeback(address holder, uint256 amount) external;
 
-    function onRelationBound(address holder) external;
+    function onRelationBound(address holder) external returns(uint96);
 }

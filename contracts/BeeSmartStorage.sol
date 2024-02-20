@@ -55,7 +55,7 @@ contract BeeSmartStorage {
     EnumerableSet.UintSet lockedOrders;  // all locked orders
     mapping(address => EnumerableSet.UintSet) userLockedOrders;
     // trader address => agent id
-    mapping(address => uint96) public boundAgents;
+    mapping(address => uint192) public boundAgents;
 
     // address => payToken => rewards
     mapping(address => mapping(address => uint256)) public pendingRewards;

@@ -3,11 +3,13 @@ pragma solidity ^0.8.9;
 
 contract Reputation {
 
+    uint96  public constant RelationStartIndex = 200000000;
     uint256 public constant InitReputationPoints = 5000e18;
     // holder => amount
     mapping(address => uint256) public reputationPoints;
 
     address public beeSmart;
+    uint96  public totalRelations;
 
     event ReputationGranted(address indexed holder, uint256 amount);
     event ReputationTookback(address indexed holder, uint256 amount);
@@ -29,8 +31,10 @@ contract Reputation {
         return "BSRP";
     }
 
-    function onRelationBound(address holder) external onlyBeeSmart {
+    function onRelationBound(address holder) external onlyBeeSmart returns(uint96) {
         reputationPoints[holder] = InitReputationPoints;
+        ++totalRelations;
+        return (RelationStartIndex + totalRelations);
     }
 
     function grant(address holder, uint256 amount) external onlyBeeSmart() {

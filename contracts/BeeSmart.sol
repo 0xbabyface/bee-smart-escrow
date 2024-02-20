@@ -205,13 +205,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     // bind relationship
-    function bindRelationship(uint96 parentId) external {
+    function bindRelationship(uint96 agentId) external {
         require(boundAgents[msg.sender] == 0, "already bound");
-        require(agentMgr.isAgentId(parentId), "agent id invalid");
+        require(agentMgr.isAgentId(agentId), "agent id invalid");
 
-        boundAgents[msg.sender] = parentId;
+        uint96 userId = reputation.onRelationBound(msg.sender);
 
-        reputation.onRelationBound(msg.sender);
+        boundAgents[msg.sender] = (userId << 96) + agentId;
     }
 
     // agents and community and any one claim reward
@@ -467,7 +467,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         order.buyerFee = buyerFee;
 
-        uint96 agentId = boundAgents[order.buyer];
+        uint96 agentId = uint96(boundAgents[order.buyer] & (0xffff_ffff_ffff_ffff_ffff_ffff));
         agentTradeVolumn[agentId][order.payToken] += order.sellAmount;
 
         IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
@@ -506,8 +506,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         pendingRewards[operatorWallet][payToken]    += operatorFee;
         pendingRewards[globalShareWallet][payToken] += globalFee;
 
+        // uint96 agentId = uint96(boundAgents[trader] & (0xffff_ffff_ffff_ffff_ffff_ffff));
         RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(
-            agentMgr.agentId2Wallet(boundAgents[trader])
+           // agentMgr.agentId2Wallet(agentId)
+           agentMgr.agentId2Wallet(uint96(boundAgents[trader] & (0xffff_ffff_ffff_ffff_ffff_ffff)))
         );
         uint len = upperAgents.length;
         uint agentTotalFee = totalFee / 2; // 50% fee share to agents

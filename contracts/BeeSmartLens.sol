@@ -242,7 +242,7 @@ contract BeeSmartLens {
     function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
         IReputation reputation = smart.reputation();
 
-        uint96 relationId = smart.boundAgents(wallet);
+        uint96 relationId = uint96(smart.boundAgents(wallet) >> 96);
         address[] memory tradableTokens = smart.getSupportTokens();
 
         UserInfo memory info = UserInfo({

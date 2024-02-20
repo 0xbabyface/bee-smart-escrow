@@ -31,9 +31,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-3-3", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 3, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 3, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 3, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 3, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -73,9 +73,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-3-2", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 3, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 2, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 3, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 2, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -115,9 +115,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-3-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 3, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 3, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -157,9 +157,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-2-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 2, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -199,9 +199,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-2-2-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 2, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 2, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 2, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -241,9 +241,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-2-1-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 2, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 1, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 2, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 1, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -283,9 +283,9 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-1-1-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 1, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 1, true);
-      await agentManager.connect(agent3).addAgent(agent4.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 1, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 1, true);
+      await agentManager.connect(agent3).addAgent(agent3.address, agent4.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent4.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -325,8 +325,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-3", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 3, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 3, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -363,8 +363,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-2", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 2, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -401,8 +401,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -439,8 +439,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-2-2", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 2, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 2, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 2, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -477,8 +477,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-2-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 2, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 2, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -515,8 +515,8 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-1-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 1, true);
-      await agentManager.connect(agent2).addAgent(agent3.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 1, true);
+      await agentManager.connect(agent2).addAgent(agent2.address, agent3.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent3.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -553,7 +553,7 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-3", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 3, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 3, true);
 
       const agentId = await agentManager.getAgentId(agent2.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -587,7 +587,7 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-2", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 2, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 2, true);
 
       const agentId = await agentManager.getAgentId(agent2.address);
       await smart.connect(buyer).bindRelationship(agentId);
@@ -621,7 +621,7 @@ describe("BeeSmart", async function () {
     it("rewards share: 3-1", async function () {
       const { smart, seller, buyer, USDT, communityWallet, operatorWallet, globalShareWallet, agent1, agent2, agent3, agent4, agentManager } = contracts;
 
-      await agentManager.connect(agent1).addAgent(agent2.address, 1, true);
+      await agentManager.connect(agent1).addAgent(agent1.address, agent2.address, 1, true);
 
       const agentId = await agentManager.getAgentId(agent2.address);
       await smart.connect(buyer).bindRelationship(agentId);

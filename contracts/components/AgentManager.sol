@@ -53,6 +53,23 @@ contract AgentManager is Ownable, Initializable {
         );
         _;
     }
+
+    modifier onlyValidAgent(address agent) {
+        require(
+            !agents[agent].removed && agents[agent].selfId != 0,
+            "agent is invalid"
+        );
+        _;
+    }
+
+    modifier onlyTopAgent(address agent) {
+        require(
+            !agents[agent].removed && agents[agent].selfId != 0 && agents[agent].parentId == RootId,
+            "agent is not top agent"
+        );
+        _;
+    }
+
     function nextId() internal returns(uint96) {
         ++idCounter;
         ++totalAgents;
@@ -91,37 +108,102 @@ contract AgentManager is Ownable, Initializable {
 
         emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
     }
+
+    // CAUTION: if too many levels of agents, DDOS happens
+    function isSubAgent(address fatherAddress, address subAddress) internal view returns(bool) {
+        address temp = agentId2Wallet[agents[subAddress].parentId];
+        while(temp != RootWallet) {
+            if (temp == fatherAddress) return true;
+            temp = agentId2Wallet[agents[temp].parentId];
+        }
+
+        return false;
+    }
     /**
     * add sub agent for msg.sender
      */
-    function addAgent(address subAgent, StarLevel starLevel, bool canAddSubAgent) external validStarLevel(starLevel) returns(uint96) {
-        Agent storage upAgent = agents[msg.sender];
-        require(upAgent.canAddSubAgent, "can not add sub agent");
-        require(!subAgents[upAgent.selfWallet].contains(subAgent), "sub agent is added");
-        require(agents[subAgent].selfId == 0, "sub agent has bound");
+    function addAgent(
+        address fatherAgent,
+        address sonAgent,
+        StarLevel starLevel,
+        bool canAddSubAgent
+    )
+        external
+        validStarLevel(starLevel)
+        onlyValidAgent(fatherAgent)
+        returns(uint96)
+    {
+        // should judge next conditions
+        // 1. msg.sender is a agent who can add sub agent.
+        require(
+            !agents[msg.sender].removed && agents[msg.sender].canAddSubAgent,
+            "operator address is invalid"
+        );
+        // 2. fatherAgent is a sub agent of msg.sender, no matter fatherAgent can add sub agent or not.
+        require(
+            msg.sender == fatherAgent || isSubAgent(msg.sender, fatherAgent),
+            "to agent is not your sub agent"
+        );
+        // 3. son agent is valid.
+        require(
+            agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
+            "sub agent has bound"
+        );
+
+        Agent storage upAgent = agents[fatherAgent];
         require(starLevel <= upAgent.starLevel, "star level should less than sender");
 
-        subAgents[upAgent.selfWallet].add(subAgent);
+        subAgents[upAgent.selfWallet].add(sonAgent);
 
-        Agent storage newAgent  = agents[subAgent];
+        Agent storage newAgent  = agents[sonAgent];
         newAgent.selfId         = nextId();
-        newAgent.selfWallet     = subAgent;
+        newAgent.selfWallet     = sonAgent;
         newAgent.parentId       = upAgent.selfId;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
 
-        agentId2Wallet[newAgent.selfId] = subAgent;
+        agentId2Wallet[newAgent.selfId] = sonAgent;
 
-        emit AgentAdded(upAgent.selfWallet, subAgent, starLevel, canAddSubAgent);
+        emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel, canAddSubAgent);
 
         return newAgent.selfId;
     }
+    /**
+    * comman agent can only remove its own sub agent
+    * @param fatherAgent sub agent to be removed
+    * @param sonAgent sub agent to be removed
+     */
+    function removeAgent(
+        address fatherAgent,
+        address sonAgent
+    )
+        external
+        onlyTopAgent(msg.sender)
+        onlyValidAgent(fatherAgent)
+        onlyValidAgent(sonAgent)
+    {
+        require(
+            isSubAgent(fatherAgent, sonAgent),
+            "not your sub agent"
+        );
 
-    function changeWallet(address oldWallet, address newWallet) external {
-        require(agents[oldWallet].selfId != 0, "invalid agent");
-        require(!agents[oldWallet].removed, "removed agent");
+        subAgents[fatherAgent].remove(sonAgent);
+        agents[sonAgent].removed = true;
 
+        // just remove global agent, if not exist, do nothing
+        globalAgentsId.remove(agents[sonAgent].selfId);
 
+        emit AgentRemoved(fatherAgent, sonAgent);
+    }
+    // because of some reason, an agent want to change his wallet.
+    // himself or owner can do this
+    function changeWallet(
+        address oldWallet,
+        address newWallet
+    )
+        external
+        onlyValidAgent(oldWallet)
+    {
         require(
             agents[oldWallet].selfWallet == msg.sender ||
             owner() == msg.sender,
@@ -132,15 +214,19 @@ contract AgentManager is Ownable, Initializable {
         agents[oldWallet].selfWallet = newWallet;
     }
 
-    function setAgentStarLevel(address agent, StarLevel newStarLevel) validStarLevel(newStarLevel) external {
+    // only top agent or father agent can do this.
+    function setAgentStarLevel(
+        address agent,
+        StarLevel newStarLevel
+    )
+        external
+        onlyValidAgent(agent)
+        validStarLevel(newStarLevel)
+    {
         require(
             subAgents[msg.sender].contains(agent) ||
             agents[msg.sender].parentId == RootId,
             "not your sub agent"
-        );
-        require(
-            !agents[agent].removed,
-            "agent is removed"
         );
 
         address[] memory nextAgents = subAgents[agent].values();
@@ -158,8 +244,14 @@ contract AgentManager is Ownable, Initializable {
 
         emit AgentStarLevelChanged(agent, oldStarLevel, newStarLevel);
     }
-
-    function setAgentAbility(address agent, bool newAbility) external {
+    // only top agent and father agent can do this
+    function setAgentAbility(
+        address agent,
+        bool newAbility
+    )
+        external
+        onlyValidAgent(agent)
+    {
         require(
             subAgents[msg.sender].contains(agent) ||
             agents[msg.sender].parentId == RootId,
@@ -173,21 +265,6 @@ contract AgentManager is Ownable, Initializable {
         subAgent.canAddSubAgent = newAbility;
 
         emit AgentAbilityChanged(agent, oldAbility, newAbility);
-    }
-    /**
-    * comman agent can only remove its own sub agent
-    * @param agent sub agent to be removed
-     */
-    function removeSubAgent(address agent) external {
-        require(subAgents[msg.sender].contains(agent), "not your sub agent");
-
-        subAgents[msg.sender].remove(agent);
-        agents[agent].removed = true;
-
-        // just remove global agent, if not exist, do nothing
-        globalAgentsId.remove(agents[agent].selfId);
-
-        emit AgentRemoved(msg.sender, agent);
     }
 
     /**

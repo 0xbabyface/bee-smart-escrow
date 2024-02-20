@@ -17,7 +17,7 @@ interface IBeeSmart {
     function getSupportTokens() external view returns(address[] memory);
     function getAllLockedOrderIds() external view returns(uint256[] memory);
     function getUserLockedOrderIds(address user) external view returns(uint256[] memory);
-    function boundAgents(address user) external view returns(uint96);
+    function boundAgents(address user) external view returns(uint192);
     function agentMgr() external view returns(AgentManager);
     function communityWallet() external view returns(address);
     function operatorWallet() external view returns(address);
