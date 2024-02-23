@@ -211,7 +211,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         uint96 userId = reputation.onRelationBound(msg.sender);
 
-        boundAgents[msg.sender] = (userId << 96) + agentId;
+        boundAgents[msg.sender] = (uint192(userId) << 96) + uint192(agentId);
     }
 
     // agents and community and any one claim reward

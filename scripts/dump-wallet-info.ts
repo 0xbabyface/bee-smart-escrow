@@ -34,28 +34,28 @@ async function main() {
   const lockedOrders = await lens.getAllLockedOrders(contracts.BeeSmartProxy);
   console.log(`lockaed Orders: ${lockedOrders}`);
 
-  // const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);
+  const userInfo = await lens.getUserInfo(contracts.BeeSmartProxy, seller.address);
 
-  // const printAssetInfo = (a: any[][]) => {
-  //   console.log("MyAsset");
-  //   for (let i = 0; i < a.length; i++) {
-  //     console.log(`
-  //       token:  ${a[i][0]}
-  //       symbol: ${a[i][1]}
-  //       decimals: ${a[i][2]}
-  //       balance:  ${ethers.formatUnits(a[i][3], 18)}
-  //     `)
-  //   }
-  // }
-  // console.log("userInfo:")
-  // console.log(`
-  //     agentId:         ${userInfo[0]}
-  //     airdropCount:    ${userInfo[1]}
-  //     reputationCount: ${ethers.formatEther(userInfo[2])}
-  //     totalTrades:     ${userInfo[3]}
-  //     rebateAmount:    ${userInfo[4]}
-  // `);
-  //   printAssetInfo(userInfo[5])
+  const printAssetInfo = (a: any[][]) => {
+    console.log("MyAsset");
+    for (let i = 0; i < a.length; i++) {
+      console.log(`
+        token:  ${a[i][0]}
+        symbol: ${a[i][1]}
+        decimals: ${a[i][2]}
+        balance:  ${ethers.formatUnits(a[i][3], 18)}
+      `)
+    }
+  }
+  console.log("userInfo:")
+  console.log(`
+      agentId:         ${userInfo[0]}
+      airdropCount:    ${userInfo[1]}
+      reputationCount: ${ethers.formatEther(userInfo[2])}
+      totalTrades:     ${userInfo[3]}
+      rebateAmount:    ${userInfo[4]}
+  `);
+    // printAssetInfo(userInfo[5] as any)
 
   // const printOrder = async (tag: string, orders: any[]) => {
   //   console.log(tag, ' ', orders.length);

@@ -8,7 +8,9 @@ async function main() {
   const smart = await ethers.getContractAt("BeeSmart", contracts.BeeSmartProxy);
 
   // await smart.connect(owner).setRole(await smart.CommunityRole(), owner.address, true);
-  await smart.connect(owner).communityDecide(8, CommunityDecision.BUYER_WIN);
+  // await smart.connect(owner).communityDecide(8, CommunityDecision.BUYER_WIN);
+  // await smart.connect(owner).bindRelationship(100000001);
+  console.log(`boundAgents: ${await smart.boundAgents(owner.address)}`);
 }
 
 main();

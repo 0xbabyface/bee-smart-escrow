@@ -11,14 +11,14 @@ let adminship = "";
 
 async function main() {
   const [owner] = await ethers.getSigners();
-  const USDT = await ethers.deployContract("TestUSDT");
-  await USDT.waitForDeployment();
+  // const USDT = await ethers.deployContract("TestUSDT");
+  // await USDT.waitForDeployment();
 
-  const USDC = await ethers.deployContract("TestUSDC");
-  await USDC.waitForDeployment();
+  // const USDC = await ethers.deployContract("TestUSDC");
+  // await USDC.waitForDeployment();
 
-  // const USDT = {target: "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1"}
-  // const USDC = {target: "0x1c2D7E574F25E5D31E802763127016C5aD66260C"}
+  const USDT = {target: "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1"}
+  const USDC = {target: "0x1c2D7E574F25E5D31E802763127016C5aD66260C"}
 
   // ---- for test ------
   smartAdmins.push(owner.address);
