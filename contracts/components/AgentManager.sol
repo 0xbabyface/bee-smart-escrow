@@ -98,11 +98,16 @@ contract AgentManager is Ownable, Initializable {
         subAgents[RootWallet].add(agent);
 
         Agent storage newAgent = agents[agent];
-        newAgent.selfId         = nextId();
         newAgent.selfWallet     = agent;
         newAgent.parentId       = RootId;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
+        newAgent.removed        = false;
+
+        // if this `agent` has been removed some time, its `selfId` should be kept
+        if (newAgent.selfId == 0) {
+            newAgent.selfId = nextId();
+        }
 
         agentId2Wallet[newAgent.selfId] = agent;
 
@@ -111,6 +116,8 @@ contract AgentManager is Ownable, Initializable {
 
     // CAUTION: if too many levels of agents, DDOS happens
     function isSubAgent(address fatherAddress, address subAddress) internal view returns(bool) {
+        if (agents[subAddress].removed || agents[fatherAddress].removed) return false;
+
         address temp = agentId2Wallet[agents[subAddress].parentId];
         while(temp != RootWallet) {
             if (temp == fatherAddress) return true;
@@ -156,11 +163,16 @@ contract AgentManager is Ownable, Initializable {
         subAgents[upAgent.selfWallet].add(sonAgent);
 
         Agent storage newAgent  = agents[sonAgent];
-        newAgent.selfId         = nextId();
         newAgent.selfWallet     = sonAgent;
         newAgent.parentId       = upAgent.selfId;
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
+        newAgent.removed        = false;
+
+        // if this `agent` has been removed some time, its `selfId` should be kept
+        if (newAgent.selfId == 0) {
+            newAgent.selfId = nextId();
+        }
 
         agentId2Wallet[newAgent.selfId] = sonAgent;
 
@@ -189,6 +201,15 @@ contract AgentManager is Ownable, Initializable {
 
         subAgents[fatherAgent].remove(sonAgent);
         agents[sonAgent].removed = true;
+
+        address[] memory grandsons = subAgents[sonAgent].values();
+        uint256 grandsonsCount = grandsons.length;
+        uint96 fatherId = agents[fatherAgent].selfId;
+        for (uint i = 0; i < grandsonsCount; ++i) {
+            subAgents[fatherAgent].add(grandsons[i]);
+            agents[grandsons[i]].parentId = fatherId;
+        }
+        delete subAgents[sonAgent];
 
         // just remove global agent, if not exist, do nothing
         globalAgentsId.remove(agents[sonAgent].selfId);
@@ -224,8 +245,8 @@ contract AgentManager is Ownable, Initializable {
         validStarLevel(newStarLevel)
     {
         require(
-            subAgents[msg.sender].contains(agent) ||
-            agents[msg.sender].parentId == RootId,
+            isSubAgent(msg.sender, agent) ||
+            owner() == msg.sender,
             "not your sub agent"
         );
 
@@ -253,8 +274,8 @@ contract AgentManager is Ownable, Initializable {
         onlyValidAgent(agent)
     {
         require(
-            subAgents[msg.sender].contains(agent) ||
-            agents[msg.sender].parentId == RootId,
+            isSubAgent(msg.sender, agent) ||
+            owner() == msg.sender,
             "not your sub agent"
         );
 
@@ -265,21 +286,6 @@ contract AgentManager is Ownable, Initializable {
         subAgent.canAddSubAgent = newAbility;
 
         emit AgentAbilityChanged(agent, oldAbility, newAbility);
-    }
-
-    /**
-    * topest agent can remove any agent but topest agent
-     */
-    function removeAnyAgent(address agent) external {
-        require(agents[msg.sender].selfWallet == RootWallet, "you are not top agent");
-        require(agents[agent].selfWallet != RootWallet, "can not remove top agent");
-
-        agents[agent].removed = true;
-
-        Agent storage pAgent = agents[agent];
-        subAgents[pAgent.selfWallet].remove(agent);
-
-        emit AgentRemoved(msg.sender, agent);
     }
 
     /**
