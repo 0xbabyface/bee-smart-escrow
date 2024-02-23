@@ -250,6 +250,9 @@ contract AgentManager is Ownable, Initializable {
             "not your sub agent"
         );
 
+        address fatherAgent = agentId2Wallet[agents[agent].parentId];
+        require(newStarLevel <= agents[fatherAgent].starLevel, "star level bigger than father's");
+
         address[] memory nextAgents = subAgents[agent].values();
         uint len = nextAgents.length;
         for (uint i = 0; i < len; ++i) {
