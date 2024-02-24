@@ -36,7 +36,7 @@ describe("AgentManager", async function () {
 
       await expect(
         manager.connect(topAgent).addAgent(agent2.address, agent3.address, StarLevel.Star3, true)
-      ).to.revertedWith("star level should less than sender");
+      ).to.revertedWith("star level greater than father's");
 
       const agent = await manager.getAgentByWallet(agent2.address);
       expect(agent[0]).to.equal(100000002);
@@ -51,7 +51,7 @@ describe("AgentManager", async function () {
 
       await expect(
         manager.connect(topAgent).setAgentStarLevel(agent3.address, 3)
-      ).to.revertedWith("star level bigger than father's");
+      ).to.revertedWith("star level greater than father's");
 
       // remove agent3
       await manager.connect(topAgent).removeAgent(agent2.address, agent3.address);

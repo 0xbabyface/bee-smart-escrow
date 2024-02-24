@@ -149,16 +149,16 @@ contract AgentManager is Ownable, Initializable {
         // 2. fatherAgent is a sub agent of msg.sender, no matter fatherAgent can add sub agent or not.
         require(
             msg.sender == fatherAgent || isSubAgent(msg.sender, fatherAgent),
-            "to agent is not your sub agent"
+            "only agent's father"
         );
         // 3. son agent is valid.
         require(
             agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
-            "sub agent has bound"
+            "sub agent has been bound"
         );
 
         Agent storage upAgent = agents[fatherAgent];
-        require(starLevel <= upAgent.starLevel, "star level should less than sender");
+        require(starLevel <= upAgent.starLevel, "star level greater than father's");
 
         subAgents[upAgent.selfWallet].add(sonAgent);
 
@@ -228,7 +228,7 @@ contract AgentManager is Ownable, Initializable {
         require(
             agents[oldWallet].selfWallet == msg.sender ||
             owner() == msg.sender,
-            "invalid msg.sender"
+            "only owner or agent himself"
         );
 
         agentId2Wallet[agents[oldWallet].selfId] = newWallet;
@@ -247,11 +247,11 @@ contract AgentManager is Ownable, Initializable {
         require(
             isSubAgent(msg.sender, agent) ||
             owner() == msg.sender,
-            "not your sub agent"
+            "only owner or father of agent"
         );
 
         address fatherAgent = agentId2Wallet[agents[agent].parentId];
-        require(newStarLevel <= agents[fatherAgent].starLevel, "star level bigger than father's");
+        require(newStarLevel <= agents[fatherAgent].starLevel, "star level greater than father's");
 
         address[] memory nextAgents = subAgents[agent].values();
         uint len = nextAgents.length;
@@ -279,7 +279,7 @@ contract AgentManager is Ownable, Initializable {
         require(
             isSubAgent(msg.sender, agent) ||
             owner() == msg.sender,
-            "not your sub agent"
+            "only owner or agent's father"
         );
 
         Agent storage subAgent = agents[agent];
@@ -298,7 +298,7 @@ contract AgentManager is Ownable, Initializable {
         require(
             agents[msg.sender].parentId == RootId ||
             owner() == msg.sender,
-            "only top agent or admin"
+            "only top agent or owner"
         );
         uint256 agentId = agents[wallet].selfId;
         require(agentId != 0, "agent not exist");
@@ -312,7 +312,7 @@ contract AgentManager is Ownable, Initializable {
         require(
             agents[msg.sender].parentId == RootId ||
             owner() == msg.sender,
-            "only top agent or admin"
+            "only top agent or owner"
         );
         uint256 agentId = agents[wallet].selfId;
         require(agentId != 0, "agent not exist");
