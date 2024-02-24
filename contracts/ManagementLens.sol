@@ -70,10 +70,10 @@ contract ManagementLens {
         } else if (totalOrders >= offset) {
             start = totalOrders - offset;
             end = 0;
-        } else {
+        } /*else {
             start = 0;
             end = 0;
-        }
+        }*/
 
         Order.Record[] memory records = new Order.Record[](start - end);
         uint j;
@@ -168,5 +168,69 @@ contract ManagementLens {
         });
 
         return a;
+    }
+
+    struct AgentRebateInfo {
+        uint256 orderId;         // 订单ID
+        address buyer;           // 买家
+        address seller;          // 卖家
+        address payToken;        // token
+        string  symbol;          // symbol
+        uint8   decimals;         // decimal
+        uint256 sellAmount;      // 交易金额
+        uint256 rebateAmount;    //返利金额
+    }
+    function getRebateInfo(IBeeSmart smart, uint96 agentId, uint256 offset, uint256 limit)
+        external
+        view
+        returns(uint256, AgentRebateInfo[] memory)
+    {
+        Agent memory agent = smart.agentMgr().getAgentById(agentId);
+        if (agent.selfId == 0) {
+            return (0, new AgentRebateInfo[](0));
+        }
+
+        uint256 total = smart.getAgentRebateLength(agentId);
+        if (total == 0) {
+            return (0, new AgentRebateInfo[](0));
+        }
+
+        if (total <= offset) {
+            return (0, new AgentRebateInfo[](0));
+        }
+
+        uint256 start;
+        uint256 end;
+        if (total >= offset + limit) {
+            start = total - offset - 1;
+            end = start + 1 - limit;
+        } else if (total >= offset) {
+            start = total - offset - 1;
+            end = 0;
+        }
+
+        AgentRebateInfo[] memory records = new AgentRebateInfo[](start - end);
+        uint j;
+        for (uint i = start; i >= end;) {
+            Order.Rebates memory rebate = smart.getAgentRebate(agentId, i);
+            Order.Record  memory order = smart.orders(rebate.orderId);
+            IERC20Metadata payToken = IERC20Metadata(order.payToken);
+            records[j] = AgentRebateInfo({
+                orderId:      order.orderId,
+                buyer:        order.buyer,
+                seller:       order.seller,
+                payToken:     order.payToken,
+                symbol:       payToken.symbol(),
+                decimals:     payToken.decimals(),
+                sellAmount:   order.sellAmount,
+                rebateAmount: rebate.amount
+            });
+            ++j;
+
+            if (i == 0) break;
+            --i;
+        }
+
+        return (total, records);
     }
 }

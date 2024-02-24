@@ -305,8 +305,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint256 buyerGotAmount  = releaseToBuyer(order, false);
 
         // S1: rewards for agents, buyer, seller
-        dispatchFees(order.buyerFee, order.payToken, order.buyer);
-        dispatchFees(order.sellerFee, order.payToken, order.seller);
+        dispatchFees(order.orderId, order.buyerFee, order.payToken, order.buyer);
+        dispatchFees(order.orderId, order.sellerFee, order.payToken, order.seller);
         dispatchReputationAndAirdrop(order, true);
 
         emit OrderConfirmed(orderId, buyerGotAmount, order.buyerFee + order.sellerFee);
@@ -370,7 +370,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             order.toStatus(Order.Status.CONFIRMED);
 
             releaseToBuyer(order, false);
-            dispatchFees(order.buyerFee, order.payToken, order.buyer);
+            dispatchFees(order.orderId, order.buyerFee, order.payToken, order.buyer);
             dispatchReputationAndAirdrop(order, false);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
             // both seller and buyer dispute
@@ -414,8 +414,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         if (decision == 0 /* Buyer Win */) {
             order.toStatus(Order.Status.BUYERWIN);
             releaseToBuyer(order, true);
-            dispatchFees(order.sellerFee, order.payToken, order.seller);
-            dispatchFees(order.buyerFee, order.payToken, order.buyer);
+            dispatchFees(order.orderId, order.sellerFee, order.payToken, order.seller);
+            dispatchFees(order.orderId, order.buyerFee, order.payToken, order.buyer);
             clearReputation(order.seller);
         } else if (decision == 1 /* Seller Win*/) {
             order.toStatus(Order.Status.SELLERWIN);
@@ -451,6 +451,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     function getUserLockedOrderIds(address user) public view returns(uint256[] memory) {
         return userLockedOrders[user].values();
+    }
+
+    function getAgentRebateLength(uint96 agentId) public view returns(uint256) {
+        return agentRebates[agentId].length;
+    }
+
+    function getAgentRebate(uint96 agentId, uint256 index) public view returns(Order.Rebates memory) {
+        return agentRebates[agentId][index];
     }
 
 // --------------------- internal functions -------------------------------
@@ -492,19 +500,26 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputation.takeback(dealer, points);
     }
 
-    function dispatchFees(uint256 totalFee, address payToken, address trader)
+    struct FeeParams {
+        uint256 communityFee;
+        uint256 operatorFee;
+        uint256 globalFee ;
+        uint256 sameLevelFee;
+    }
+    function dispatchFees(uint256 orderId, uint256 totalFee, address payToken, address trader)
         internal
     {
         if (totalFee == 0) return;
         // dispatch fee to agents and community
-        uint256 communityFee = totalFee * communityFeeRatio / RatioPrecision;
-        uint256 operatorFee  = totalFee * operatorFeeRatio / RatioPrecision;
-        uint256 globalFee    = totalFee * globalShareFeeRatio / RatioPrecision;
-        uint256 sameLevelFee = totalFee * sameLevelFeeRatio / RatioPrecision;
+        FeeParams memory p = FeeParams(0,0,0,0);
+        p.communityFee = totalFee * communityFeeRatio / RatioPrecision;
+        p.operatorFee  = totalFee * operatorFeeRatio / RatioPrecision;
+        p.globalFee    = totalFee * globalShareFeeRatio / RatioPrecision;
+        p.sameLevelFee = totalFee * sameLevelFeeRatio / RatioPrecision;
 
-        pendingRewards[communityWallet][payToken]   += communityFee;
-        pendingRewards[operatorWallet][payToken]    += operatorFee;
-        pendingRewards[globalShareWallet][payToken] += globalFee;
+        pendingRewards[communityWallet][payToken]   += p.communityFee;
+        pendingRewards[operatorWallet][payToken]    += p.operatorFee;
+        pendingRewards[globalShareWallet][payToken] += p.globalFee;
 
         // uint96 agentId = uint96(boundAgents[trader] & (0xffff_ffff_ffff_ffff_ffff_ffff));
         RewardAgent[] memory upperAgents = agentMgr.getUpperAgents(
@@ -520,10 +535,14 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
                 uint256 r = 2 * agentTotalFee * agt.feeRatio / RatioPrecision;
                 pendingRewards[agt.wallet][payToken] += r;
                 leftFee -= r;
+
+                agentRebates[agt.agentId].push(Order.Rebates(orderId, r));
             } else {
-                if (sameLevelFee != 0) { // if agent fee ratio is 0, share same level fee
-                    pendingRewards[agt.wallet][payToken] += sameLevelFee;
-                    sameLevelFee = 0;
+                if (p.sameLevelFee != 0) { // if agent fee ratio is 0, share same level fee
+                    pendingRewards[agt.wallet][payToken] += p.sameLevelFee;
+                    p.sameLevelFee = 0;
+
+                    agentRebates[agt.agentId].push(Order.Rebates(orderId, p.sameLevelFee));
                 }
             }
         }
@@ -532,8 +551,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             pendingRewards[operatorWallet][payToken] += leftFee;
         }
 
-        if (sameLevelFee > 0) {
-            pendingRewards[operatorWallet][payToken] += sameLevelFee;
+        if (p.sameLevelFee > 0) {
+            pendingRewards[operatorWallet][payToken] += p.sameLevelFee;
         }
     }
 

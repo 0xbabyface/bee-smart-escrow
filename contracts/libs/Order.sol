@@ -41,6 +41,11 @@ library Order {
         uint256 curAmount;
     }
 
+    struct Rebates {
+        uint256 orderId;
+        uint256 amount;
+    }
+
     function toStatus(Record storage r, Status s) internal {
         r.prevStatus = r.currStatus;
         r.currStatus = s;

@@ -61,4 +61,6 @@ contract BeeSmartStorage {
     mapping(address => mapping(address => uint256)) public pendingRewards;
     // agent id => payToken => trade amount
     mapping(uint96 => mapping(address => uint256)) public agentTradeVolumn;
+    // agent id => Order.Rebates[]
+    mapping(uint96 => Order.Rebates[]) agentRebates;
 }

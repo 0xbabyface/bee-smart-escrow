@@ -18,6 +18,7 @@ struct Agent {
 struct RewardAgent {
     address  wallet;
     uint256  feeRatio;
+    uint96   agentId;
 }
 
 contract AgentManager is Ownable, Initializable {
@@ -393,7 +394,8 @@ contract AgentManager is Ownable, Initializable {
                         agents[temp].selfWallet,
                         rewardRatioForStarLevel(
                             agents[temp].starLevel,
-                            i == 0 ? StarLevel.NoneStar : agents[upper[i - 1].wallet].starLevel)
+                            i == 0 ? StarLevel.NoneStar : agents[upper[i - 1].wallet].starLevel),
+                        agents[temp].selfId
                     );
                     ++i;
                 }

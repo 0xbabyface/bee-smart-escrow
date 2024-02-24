@@ -36,4 +36,6 @@ interface IBeeSmart {
     function CommunityRole() external view returns(bytes32);
     function pendingRewards(address owner, address payToken) external view returns(uint256);
     function totalOrdersCount() external view returns(uint256);
+    function getAgentRebateLength(uint96 agentId) external view returns(uint256);
+    function getAgentRebate(uint96 agentId, uint256 index) external view returns(Order.Rebates memory);
 }
