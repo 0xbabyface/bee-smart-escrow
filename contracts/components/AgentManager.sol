@@ -12,7 +12,7 @@ struct Agent {
     StarLevel                starLevel;     // star level
     bool                     canAddSubAgent;// if this agent can has its own sub agent
     bool                     removed;
-    // EnumerableSet.AddressSet subAgents;     // wallet address of sub agents
+    string                   nickName;
 }
 
 struct RewardAgent {
@@ -92,7 +92,7 @@ contract AgentManager is Ownable, Initializable {
         shareFeeRatio[StarLevel.Star3] = 0.5E18;
     }
     // to add top agent by platform owner
-    function addTopAgent(address agent, StarLevel starLevel, bool canAddSubAgent) external validStarLevel(starLevel) onlyOwner {
+    function addTopAgent(address agent, StarLevel starLevel, bool canAddSubAgent, string memory nickName) external validStarLevel(starLevel) onlyOwner {
         // require(!agents[RootWallet].subAgents.contains(agent), "already added");
         require(!subAgents[RootWallet].contains(agent), "already added");
         subAgents[RootWallet].add(agent);
@@ -103,6 +103,7 @@ contract AgentManager is Ownable, Initializable {
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
         newAgent.removed        = false;
+        newAgent.nickName       = nickName;
 
         // if this `agent` has been removed some time, its `selfId` should be kept
         if (newAgent.selfId == 0) {
@@ -133,7 +134,8 @@ contract AgentManager is Ownable, Initializable {
         address fatherAgent,
         address sonAgent,
         StarLevel starLevel,
-        bool canAddSubAgent
+        bool canAddSubAgent,
+        string memory nickName
     )
         external
         validStarLevel(starLevel)
@@ -168,6 +170,7 @@ contract AgentManager is Ownable, Initializable {
         newAgent.starLevel      = starLevel;
         newAgent.canAddSubAgent = canAddSubAgent;
         newAgent.removed        = false;
+        newAgent.nickName       = nickName;
 
         // if this `agent` has been removed some time, its `selfId` should be kept
         if (newAgent.selfId == 0) {

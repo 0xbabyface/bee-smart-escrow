@@ -150,6 +150,7 @@ contract ManagementLens {
         bool       removed;           // 是否已经被删除
         bool       isGlobalAgent;     // 是否全球代理
         address[]  subAgents;         // 子代理账号
+        string     nickName;          //
     }
     function getAgentInfo(IBeeSmart smart, address wallet) external view returns(AgentInfo memory) {
         Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
@@ -162,7 +163,8 @@ contract ManagementLens {
             canAddSubAgent: agent.canAddSubAgent,
             removed:        agent.removed,
             isGlobalAgent:  smart.agentMgr().isGlobalAgent(wallet),
-            subAgents:      smart.agentMgr().getSubAgents(wallet)
+            subAgents:      smart.agentMgr().getSubAgents(wallet),
+            nickName:       agent.nickName
         });
 
         return a;

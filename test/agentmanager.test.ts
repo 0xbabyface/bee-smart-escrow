@@ -30,12 +30,12 @@ describe("AgentManager", async function () {
     it("make order over reputations", async function () {
       const { manager, owner, topAgent, agent2, agent3, agent4 } = await loadFixture(deployAgentManager);
 
-      await manager.addTopAgent(topAgent.address, StarLevel.Star3, true);
+      await manager.addTopAgent(topAgent.address, StarLevel.Star3, true, 'top agent');
 
-      await manager.connect(topAgent).addAgent(topAgent.address, agent2.address, StarLevel.Star2, true);
+      await manager.connect(topAgent).addAgent(topAgent.address, agent2.address, StarLevel.Star2, true, "sub agent2");
 
       await expect(
-        manager.connect(topAgent).addAgent(agent2.address, agent3.address, StarLevel.Star3, true)
+        manager.connect(topAgent).addAgent(agent2.address, agent3.address, StarLevel.Star3, true, 'sub agent 3')
       ).to.revertedWith("star level greater than father's");
 
       const agent = await manager.getAgentByWallet(agent2.address);
@@ -46,8 +46,8 @@ describe("AgentManager", async function () {
       expect(agent[4]).to.be.true;
       expect(agent[5]).to.be.false;
 
-      await manager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true);
-      await manager.connect(agent3).addAgent(agent3.address, agent4.address, 2, false)
+      await manager.connect(agent2).addAgent(agent2.address, agent3.address, 2, true, 'sub agent 3');
+      await manager.connect(agent3).addAgent(agent3.address, agent4.address, 2, false, 'sub agent 4')
 
       await expect(
         manager.connect(topAgent).setAgentStarLevel(agent3.address, 3)
