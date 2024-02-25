@@ -11,12 +11,12 @@
       },
 
     "mumbai": {
-      "BeeSmartProxy":      "0x2bFB513D8d4767c559d13D39Cb7166419Ca1892B",
-      "AgentManagerProxy":  "0x138Cd6FC6d78aCac6322b9c1AB9A40C0158dF671",
-      "Reputation":         "0xffCD2f51c207e9A0D59bb0379707B863d5eB383C",
-      "BeeSmart":           "0x537536e7840F3D490606FB0c528B44FF555dC07E",
-      "BeeSmartLens":       "0xaB0Da915c7D104cc413736D89d4537F958818764",
-      "ManagementLens":     "0x77F3b7f209bE891eb75Fd98f58087e31Bf380Dc4",
+      "BeeSmartProxy":      "0x2EBb76505aCe435606d8d2cc33e4CB0C19f04473",
+      "AgentManagerProxy":  "0xDA1F20852DA46c871AcAfb8523220C5E5F588E6A",
+      "Reputation":         "0xB51130A8f52c104942926C8e7F9de6D0481910aD",
+      "BeeSmart":           "0x1b6Fbc4ecc665a81F6ab783c79E0c0A537820CF2",
+      "BeeSmartLens":       "0xc4B88c33Bf2CFC1897257018bC8900C053c544CA",
+      "ManagementLens":     "0x0d85C1Ee82af3D4Db2A8dad271C5692B1e97B709",
       "TestUSDT":           "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
       "TestUSDC":           "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
     }

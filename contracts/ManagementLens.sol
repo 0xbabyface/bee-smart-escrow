@@ -204,12 +204,12 @@ contract ManagementLens {
         if (total >= offset + limit) {
             start = total - offset - 1;
             end = start + 1 - limit;
-        } else if (total >= offset) {
+        } else if (total > offset) {
             start = total - offset - 1;
             end = 0;
         }
 
-        AgentRebateInfo[] memory records = new AgentRebateInfo[](start - end);
+        AgentRebateInfo[] memory records = new AgentRebateInfo[](start + 1 - end);
         uint j;
         for (uint i = start; i >= end;) {
             Order.Rebates memory rebate = smart.getAgentRebate(agentId, i);

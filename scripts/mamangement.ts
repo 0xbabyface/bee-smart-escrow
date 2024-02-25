@@ -4,7 +4,7 @@ import {contracts} from "./env";
 
 async function main() {
   const [seller, buyer] = await ethers.getSigners();
-  const Management = await ethers.getContractAt('ManagementLens', '0x61a6786c16b84F7C5f471A9f503685bc7A0AFB09');
+  const Management = await ethers.getContractAt('ManagementLens', contracts.ManagementLens);
 
   // const settings = await Management.getSysSettings(contracts.BeeSmartProxy);
   // console.log(`settings: ${settings}`);
@@ -17,8 +17,8 @@ async function main() {
   // const agentInfo = await Management.getAgentInfo(contracts.BeeSmartProxy, seller.address);
   // console.log(`agent: ${agentInfo}`);
 
-  // const histtoryOrders = await Management.getHistoryOrders(contracts.BeeSmartProxy, 0, 10);
-  // console.log(`history orders: ${histtoryOrders}`);
+  const histtoryOrders = await Management.getRebateInfo(contracts.BeeSmartProxy, 100000001, 0, 25);
+  console.log(`100000004: ${histtoryOrders}`);
 }
 
 main();
