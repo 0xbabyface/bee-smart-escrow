@@ -394,7 +394,7 @@ contract AgentManager is Ownable, Initializable {
                 if (!agents[temp].removed) {
                     upper[i] = RewardAgent(
                         agents[temp].selfWallet,
-                        rewardRatioForStarLevel(
+                        2 * rewardRatioForStarLevel( // multiply 2 because we should make all share accumulate to 100%
                             agents[temp].starLevel,
                             i == 0 ? StarLevel.NoneStar : agents[upper[i - 1].wallet].starLevel),
                         agents[temp].selfId

@@ -532,17 +532,17 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         for (uint i = 0; i < len; ++i) {
             RewardAgent memory agt = upperAgents[i];
             if (agt.feeRatio != 0) {
-                uint256 r = 2 * agentTotalFee * agt.feeRatio / RatioPrecision;
+                uint256 r = agentTotalFee * agt.feeRatio / RatioPrecision;
                 pendingRewards[agt.wallet][payToken] += r;
                 leftFee -= r;
 
-                agentRebates[agt.agentId].push(Order.Rebates(orderId, r));
+                if (r > 0) agentRebates[agt.agentId].push(Order.Rebates(orderId, r));
             } else {
                 if (p.sameLevelFee != 0) { // if agent fee ratio is 0, share same level fee
                     pendingRewards[agt.wallet][payToken] += p.sameLevelFee;
-                    p.sameLevelFee = 0;
-
                     agentRebates[agt.agentId].push(Order.Rebates(orderId, p.sameLevelFee));
+
+                    p.sameLevelFee = 0;
                 }
             }
         }

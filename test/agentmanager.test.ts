@@ -25,9 +25,9 @@ async function deployAgentManager() {
 
 describe("AgentManager", async function () {
 
-  describe("normal procedures of order", function () {
+  describe("normal", function () {
 
-    it("make order over reputations", async function () {
+    it("normal operations", async function () {
       const { manager, owner, topAgent, agent2, agent3, agent4 } = await loadFixture(deployAgentManager);
 
       await manager.addTopAgent(topAgent.address, StarLevel.Star3, true, 'top agent');
@@ -53,6 +53,7 @@ describe("AgentManager", async function () {
         manager.connect(topAgent).setAgentStarLevel(agent3.address, 3)
       ).to.revertedWith("star level greater than father's");
 
+      await manager.connect(topAgent).setAgentStarLevel(agent2.address, 3)
       // remove agent3
       await manager.connect(topAgent).removeAgent(agent2.address, agent3.address);
       // now agent4's father node is agent2
