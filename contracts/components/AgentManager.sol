@@ -87,6 +87,8 @@ contract AgentManager is Ownable, Initializable {
         rootAgent.selfId     = RootId;
         rootAgent.selfWallet = RootWallet;
 
+        agentId2Wallet[RootId] = RootWallet;
+
         shareFeeRatio[StarLevel.NoneStar] = 0;
         shareFeeRatio[StarLevel.Star1] = 0.2E18;
         shareFeeRatio[StarLevel.Star2] = 0.3E18;
