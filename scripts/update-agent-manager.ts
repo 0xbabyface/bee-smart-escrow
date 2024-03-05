@@ -5,6 +5,7 @@ async function main() {
   const AgentManager = await ethers.deployContract("AgentManager");
   await AgentManager.waitForDeployment();
 
+  // const calldata = AgentManager.interface.encodeFunctionData("reinit", []);
   const proxy = await ethers.getContractAt("CommonProxy", contracts.AgentManagerProxy);
   let tx = await proxy.setImplementation(AgentManager.target, "0x");
   await tx.wait();

@@ -42,8 +42,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         address[] memory payTokens,
         address _communityWallet,
         address _agentWallet,
-        address _globalWallet,
-        address _agtMgr
+        address _globalWallet
     )
         external
     {
@@ -76,8 +75,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         communityWallet   = _communityWallet;
         operatorWallet      = _agentWallet;
         globalShareWallet = _globalWallet;
-
-        agentMgr = AgentManager(_agtMgr);
     }
 
     // set community wallet
@@ -161,7 +158,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         chargesBaredBuyerRatio = buyerFeeRatio;
 
         emit TraderFeeRatioSet(msg.sender, oldSellerFee, sellerFeeRatio, oldBuyerFee, buyerFeeRatio);
-
     }
 
     // add tradable tokens
@@ -212,6 +208,18 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint96 userId = reputation.onRelationBound(msg.sender);
 
         boundAgents[msg.sender] = (uint192(userId) << 96) + uint192(agentId);
+    }
+
+    // once add a new agent, change its bound info to itself
+    function onNewAgent(address agent, uint96 agentId) external {
+        require(msg.sender == address(agentMgr), "only agent manager");
+        uint96 userId;
+        if (boundAgents[agent] == 0) {
+            userId = reputation.onRelationBound(agent);
+        } else {
+            userId = uint96(boundAgents[agent] >> 96);
+        }
+        boundAgents[agent] = (uint192(userId) << 96) + uint192(agentId);
     }
 
     // agents and community and any one claim reward

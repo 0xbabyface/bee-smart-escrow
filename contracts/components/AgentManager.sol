@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+
+import "../IBeeSmart.sol";
 
 enum StarLevel { NoneStar, Star1, Star2, Star3 }
 struct Agent {
@@ -21,7 +22,7 @@ struct RewardAgent {
     uint96   agentId;
 }
 
-contract AgentManager is Ownable, Initializable {
+contract AgentManager is Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using EnumerableSet for EnumerableSet.UintSet;
     uint96  public constant RootId = 100000000;
@@ -40,6 +41,8 @@ contract AgentManager is Ownable, Initializable {
 
     uint96 public totalAgents;
     uint96        idCounter;
+
+    IBeeSmart     smart;
 
     event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel, bool canAddSubAgent);
     event AgentStarLevelChanged(address indexed agent, StarLevel oldStarLevel, StarLevel newStarLevel);
@@ -71,6 +74,15 @@ contract AgentManager is Ownable, Initializable {
         _;
     }
 
+    function hasAdminRole(address account) internal view returns(bool) {
+        return smart.hasRole(smart.AdminRole(), account);
+    }
+
+    modifier onlyAdmin() {
+        require(hasAdminRole(msg.sender), "only Admin");
+        _;
+    }
+
     function nextId() internal returns(uint96) {
         ++idCounter;
         ++totalAgents;
@@ -81,8 +93,9 @@ contract AgentManager is Ownable, Initializable {
         _disableInitializers();
     }
 
-    function initialize(address _owner) external initializer {
-        _transferOwnership(_owner);
+    function initialize(IBeeSmart _smart) external initializer {
+        smart = _smart;
+
         Agent storage rootAgent = agents[RootWallet];
         rootAgent.selfId     = RootId;
         rootAgent.selfWallet = RootWallet;
@@ -95,7 +108,16 @@ contract AgentManager is Ownable, Initializable {
         shareFeeRatio[StarLevel.Star3] = 0.5E18;
     }
     // to add top agent by platform owner
-    function addTopAgent(address agent, StarLevel starLevel, bool canAddSubAgent, string memory nickName) external validStarLevel(starLevel) onlyOwner {
+    function addTopAgent(
+        address agent,
+        StarLevel starLevel,
+        bool canAddSubAgent,
+        string memory nickName
+    )
+        external
+        validStarLevel(starLevel)
+        onlyAdmin
+    {
         // require(!agents[RootWallet].subAgents.contains(agent), "already added");
         require(!subAgents[RootWallet].contains(agent), "already added");
         subAgents[RootWallet].add(agent);
@@ -114,6 +136,8 @@ contract AgentManager is Ownable, Initializable {
         }
 
         agentId2Wallet[newAgent.selfId] = agent;
+
+        smart.onNewAgent(agent, newAgent.selfId);
 
         emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
     }
@@ -182,6 +206,8 @@ contract AgentManager is Ownable, Initializable {
 
         agentId2Wallet[newAgent.selfId] = sonAgent;
 
+        smart.onNewAgent(sonAgent, newAgent.selfId);
+
         emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel, canAddSubAgent);
 
         return newAgent.selfId;
@@ -233,7 +259,7 @@ contract AgentManager is Ownable, Initializable {
     {
         require(
             agents[oldWallet].selfWallet == msg.sender ||
-            owner() == msg.sender,
+            hasAdminRole(msg.sender),
             "only owner or agent himself"
         );
 
@@ -252,7 +278,7 @@ contract AgentManager is Ownable, Initializable {
     {
         require(
             isSubAgent(msg.sender, agent) ||
-            owner() == msg.sender,
+            hasAdminRole(msg.sender),
             "only owner or father of agent"
         );
 
@@ -284,7 +310,7 @@ contract AgentManager is Ownable, Initializable {
     {
         require(
             isSubAgent(msg.sender, agent) ||
-            owner() == msg.sender,
+            hasAdminRole(msg.sender),
             "only owner or agent's father"
         );
 
@@ -303,7 +329,7 @@ contract AgentManager is Ownable, Initializable {
     function addGlobalAgent(address wallet) external {
         require(
             agents[msg.sender].parentId == RootId ||
-            owner() == msg.sender,
+            hasAdminRole(msg.sender),
             "only top agent or owner"
         );
         uint256 agentId = agents[wallet].selfId;
@@ -317,7 +343,7 @@ contract AgentManager is Ownable, Initializable {
     function removeGlobalAgent(address wallet) external {
         require(
             agents[msg.sender].parentId == RootId ||
-            owner() == msg.sender,
+            hasAdminRole(msg.sender),
             "only top agent or owner"
         );
         uint256 agentId = agents[wallet].selfId;

@@ -38,4 +38,5 @@ interface IBeeSmart {
     function totalOrdersCount() external view returns(uint256);
     function getAgentRebateLength(uint96 agentId) external view returns(uint256);
     function getAgentRebate(uint96 agentId, uint256 index) external view returns(Order.Rebates memory);
+    function onNewAgent(address agent, uint96 agentId) external;
 }
