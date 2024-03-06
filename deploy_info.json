@@ -11,10 +11,10 @@
       },
 
     "mumbai": {
-      "BeeSmartProxy":      "0x2EBb76505aCe435606d8d2cc33e4CB0C19f04473",
-      "AgentManagerProxy":  "0xDA1F20852DA46c871AcAfb8523220C5E5F588E6A",
-      "Reputation":         "0xB51130A8f52c104942926C8e7F9de6D0481910aD",
-      "BeeSmart":           "0x1b6Fbc4ecc665a81F6ab783c79E0c0A537820CF2",
+      "BeeSmartProxy":      "0x0Cd70735A61f5b05e0473CF60ad69F4dc35c47B1",
+      "AgentManagerProxy":  "0xDd9d7a33b982C437aA40ea5DA7402C6Cc0Ec5765",
+      "Reputation":         "0xc72633364946A50c46909186eb723AE981333025",
+      "BeeSmart":           "0xbaEc625e69a3B1f5010055A5C65ac75eF31E4a57",
       "BeeSmartLens":       "0xc4B88c33Bf2CFC1897257018bC8900C053c544CA",
       "ManagementLens":     "0x0d85C1Ee82af3D4Db2A8dad271C5692B1e97B709",
       "TestUSDT":           "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",

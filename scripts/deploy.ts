@@ -11,6 +11,7 @@ let adminship = "";
 
 async function main() {
   const [owner] = await ethers.getSigners();
+  console.log(`owner: ${owner.address}`);
   // const USDT = await ethers.deployContract("TestUSDT");
   // await USDT.waitForDeployment();
 
@@ -50,6 +51,8 @@ async function main() {
   const BeeSmartProxy = await ethers.deployContract("CommonProxy", [BeeSmart.target, initializeData, adminship]);
   await BeeSmartProxy.waitForDeployment();
 
+  console.log(`BeeSmartProxy: ${BeeSmartProxy.target}`)
+
   const AgentManager = await ethers.deployContract("AgentManager");
   await AgentManager.waitForDeployment();
   const agentInit = AgentManager.interface.encodeFunctionData(
@@ -59,15 +62,15 @@ async function main() {
   const AgentManagerProxy = await ethers.deployContract("CommonProxy", [AgentManager.target, agentInit, adminship]);
   await AgentManagerProxy.waitForDeployment();
 
+  console.log(`AgentManagerProxy: ${AgentManagerProxy.target}`)
 
   const BeeSmartLens = await ethers.deployContract("BeeSmartLens");
   await BeeSmartLens.waitForDeployment();
 
   const ManagementLens = await ethers.deployContract("ManagementLens");
-  await BeeSmartLens.waitForDeployment();
+  await ManagementLens.waitForDeployment();
 
   const Reputation = await ethers.deployContract("Reputation", [BeeSmartProxy.target]);
-  await ManagementLens.waitForDeployment();
 
   // to initialize system
   const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);

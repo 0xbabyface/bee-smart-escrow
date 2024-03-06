@@ -2,6 +2,7 @@
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "./BeeSmartStorage.sol";
 
@@ -229,7 +230,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint256 rewards = pendingRewards[msg.sender][payToken];
         pendingRewards[msg.sender][payToken] = 0;
 
-        IERC20Metadata(payToken).transfer(msg.sender, rewards);
+        SafeERC20.safeTransfer(IERC20Metadata(payToken), msg.sender, rewards);
 
         emit RewardClaimed(msg.sender, payToken, rewards);
     }
@@ -252,7 +253,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         ++totalOrdersCount;
 
         uint256 sellerFee = sellAmount * chargesBaredSellerRatio / RatioPrecision;
-        IERC20Metadata(payToken).transferFrom(msg.sender, address(this), sellAmount + sellerFee);
+        SafeERC20.safeTransferFrom(IERC20Metadata(payToken), msg.sender, address(this), sellAmount + sellerFee);
 
         uint256 orderId = totalOrdersCount;
         orders[orderId] = Order.Record(
@@ -298,7 +299,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             emit OrderAdjusted(orderId, order.seller, order.buyer, preAmount, order.sellAmount);
         }
 
-        IERC20Metadata(order.payToken).transfer(order.seller, (order.sellAmount - targetAmount) + rebateFee);
+        SafeERC20.safeTransfer(IERC20Metadata(order.payToken), order.seller, order.sellAmount + rebateFee - targetAmount);
     }
 
     // seller confirmed and want to finish an order.
@@ -470,11 +471,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
 // --------------------- internal functions -------------------------------
-    function releaseToBuyer(Order.Record storage order, bool chareDisputeWinnerFee) internal returns(uint256) {
+    function releaseToBuyer(Order.Record storage order, bool chargeDisputeWinnerFee) internal returns(uint256) {
         uint256 buyerFee     = order.sellAmount * chargesBaredBuyerRatio / RatioPrecision;
         uint256 buyerGotAmount = order.sellAmount - buyerFee;
 
-        if (chareDisputeWinnerFee) {
+        if (chargeDisputeWinnerFee) {
             uint256 disputeWinnerFee = order.sellAmount * disputeWinnerFeeRatio / RatioPrecision;
             buyerGotAmount -= disputeWinnerFee;
 
@@ -486,20 +487,20 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         uint96 agentId = uint96(boundAgents[order.buyer] & (0xffff_ffff_ffff_ffff_ffff_ffff));
         agentTradeVolumn[agentId][order.payToken] += order.sellAmount;
 
-        IERC20Metadata(order.payToken).transfer(order.buyer, buyerGotAmount);
+        SafeERC20.safeTransfer(IERC20Metadata(order.payToken), order.buyer, buyerGotAmount);
         return buyerGotAmount;
     }
 
-    function releaseToSeller(Order.Record storage order, bool chareDisputeWinnerFee) internal {
+    function releaseToSeller(Order.Record storage order, bool chargeDisputeWinnerFee) internal {
         uint256 sellerGotAmount = order.sellAmount + order.sellerFee;
-        if (chareDisputeWinnerFee) {
+        if (chargeDisputeWinnerFee) {
             uint256 disputeWinnerFee = order.sellAmount * disputeWinnerFeeRatio / RatioPrecision;
             sellerGotAmount -= disputeWinnerFee;
 
             pendingRewards[communityWallet][order.payToken] += disputeWinnerFee;
         }
 
-        IERC20Metadata(order.payToken).transfer(order.seller, sellerGotAmount);
+        SafeERC20.safeTransfer(IERC20Metadata(order.payToken), order.seller, sellerGotAmount);
         order.sellerFee = 0;
     }
 
