@@ -11,6 +11,10 @@ async function main() {
   await tx.wait();
 
   console.log(`update agentmanager to ${AgentManager.target} : ${tx.hash}`);
+
+  let amNew = await ethers.getContractAt('AgentManager', contracts.AgentManagerProxy);
+  tx = await amNew.fix();
+  await tx.wait();
 }
 
 main();

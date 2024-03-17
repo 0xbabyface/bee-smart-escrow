@@ -40,7 +40,7 @@ contract AgentManager is Initializable {
     mapping(StarLevel => uint256) public shareFeeRatio;
 
     uint96 public totalAgents;
-    uint96        idCounter;
+    uint96        idCounter; // should be removed
 
     IBeeSmart     smart;
 
@@ -84,9 +84,8 @@ contract AgentManager is Initializable {
     }
 
     function nextId() internal returns(uint96) {
-        ++idCounter;
         ++totalAgents;
-        return RootId + idCounter;
+        return RootId + totalAgents;
     }
 
     constructor() {
@@ -118,8 +117,9 @@ contract AgentManager is Initializable {
         validStarLevel(starLevel)
         onlyAdmin
     {
-        // require(!agents[RootWallet].subAgents.contains(agent), "already added");
         require(!subAgents[RootWallet].contains(agent), "already added");
+        require(agent != address(0) && agent != RootWallet, "invalid agent wallet");
+
         subAgents[RootWallet].add(agent);
 
         Agent storage newAgent = agents[agent];
@@ -185,6 +185,8 @@ contract AgentManager is Initializable {
             agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
             "sub agent has been bound"
         );
+
+        require(sonAgent != address(0) && sonAgent != RootWallet, "son agent is invalid");
 
         Agent storage upAgent = agents[fatherAgent];
         require(starLevel <= upAgent.starLevel, "star level greater than father's");
@@ -263,8 +265,27 @@ contract AgentManager is Initializable {
             "only owner or agent himself"
         );
 
-        agentId2Wallet[agents[oldWallet].selfId] = newWallet;
-        agents[oldWallet].selfWallet = newWallet;
+        require(oldWallet != newWallet, "wallet not changed");
+        require(newWallet != address(0) && newWallet != RootWallet, "new wallet is invalid");
+
+        uint96 selfId = agents[oldWallet].selfId;
+        uint96 parentId = agents[oldWallet].parentId;
+
+        address parentWallet = agentId2Wallet[parentId];
+        subAgents[parentWallet].remove(oldWallet);
+        subAgents[parentWallet].add(newWallet);
+
+        address[] memory subWallets = subAgents[oldWallet].values();
+        for (uint256 i = 0; i < subWallets.length; ++i) {
+            subAgents[newWallet].add(subWallets[i]);
+        }
+        delete subAgents[oldWallet];
+
+        agents[newWallet] = agents[oldWallet];
+        agents[newWallet].selfWallet = newWallet;
+        delete agents[oldWallet];
+
+        agentId2Wallet[selfId] = newWallet;
     }
 
     // only top agent or father agent can do this.

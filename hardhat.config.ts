@@ -49,7 +49,7 @@ const config: HardhatUserConfig = {
       accounts,
     },
     mumbai: {
-      url: "https://rpc-mumbai.maticvigil.com",
+      url: "https://rpc.ankr.com/polygon_mumbai",
       // gas: 6000000,
       // gasPrice: 5000000000, // 5gwei
       accounts,

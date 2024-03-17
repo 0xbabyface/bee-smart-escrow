@@ -24,7 +24,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     event CommunityDecided(uint256 indexed orderId, address indexed judger, uint8 decision);
 
     event CommunityWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
-    event AgentsWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
+    event OperatorWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
     event GlobalShareWalletSet(address indexed admin, address indexed oldWallet, address indexed newWallet);
 
     event ShareFeeRatioSet(address indexed admin, uint256 communityRatio, uint256 agentRatio, uint256 globalRatio, uint256 sameLevelRatio);
@@ -65,7 +65,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         orderStatusDurationSec  = 30 * 60;   // 30 minutes waiting for order status
         communityFeeRatio       = 0.2E18;    // fee ratio: 20%
-        operatorFeeRatio           = 0.1E18;    // top agent ratio 10%
+        operatorFeeRatio        = 0.1E18;    // top agent ratio 10%
         globalShareFeeRatio     = 0.1E18;    // global share fee ratio
         sameLevelFeeRatio       = 0.1E18;    // same level fee ratio
         chargesBaredBuyerRatio  = 0.005E18;  // 0.5% buyer fee ratio
@@ -73,9 +73,9 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         reputationRatio         = 1E18;
         disputeWinnerFeeRatio   = 0.03E18;
 
-        communityWallet   = _communityWallet;
+        communityWallet     = _communityWallet;
         operatorWallet      = _agentWallet;
-        globalShareWallet = _globalWallet;
+        globalShareWallet   = _globalWallet;
     }
 
     // set community wallet
@@ -94,7 +94,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         address oldWallet = operatorWallet;
         operatorWallet = w;
-        emit AgentsWalletSet(msg.sender, oldWallet, w);
+        emit OperatorWalletSet(msg.sender, oldWallet, w);
     }
 
     function setGlobalShareWallet(address w) external onlyRole(AdminRole) {
@@ -102,23 +102,23 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         require(w != globalShareWallet, "same wallet");
 
         address oldWallet = globalShareWallet;
-        operatorWallet = w;
+        globalShareWallet = w;
         emit GlobalShareWalletSet(msg.sender, oldWallet, w);
     }
 
     // set community fee ratio
-    function setShareFeeRatio(uint256 communityRatio, uint256 agentRatio, uint256 globalRatio, uint256 sameLevelRatio) external onlyRole(AdminRole) {
+    function setShareFeeRatio(uint256 communityRatio, uint256 operatorRatio, uint256 globalRatio, uint256 sameLevelRatio) external onlyRole(AdminRole) {
         require(
-            communityRatio + agentRatio + globalRatio + sameLevelRatio == 0.5E18,
+            communityRatio + operatorRatio + globalRatio + sameLevelRatio == 0.5E18,
             "share ratio is not 50%"
         );
 
         communityFeeRatio = communityRatio;
-        operatorFeeRatio = agentRatio;
+        operatorFeeRatio = operatorRatio;
         globalShareFeeRatio = globalRatio;
         sameLevelFeeRatio = sameLevelRatio;
 
-        emit ShareFeeRatioSet(msg.sender, communityRatio, agentRatio, globalRatio, sameLevelRatio);
+        emit ShareFeeRatioSet(msg.sender, communityRatio, operatorRatio, globalRatio, sameLevelRatio);
     }
 
     // set role
