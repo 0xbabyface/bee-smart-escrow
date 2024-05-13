@@ -48,22 +48,26 @@ const config: HardhatUserConfig = {
       gasPrice: 5000000000, // 5gwei
       accounts,
     },
+    polygon: {
+      url: "https://rpc-mainnet.matic.quiknode.pro",
+      accounts,
+    },
+    fantom: {
+      url: "https://rpc.fantom.gateway.fm",
+      accounts,
+    },
     mumbai: {
       url: "https://rpc.ankr.com/polygon_mumbai",
-      // gas: 6000000,
-      // gasPrice: 5000000000, // 5gwei
       accounts,
     },
     heco: {
-      url: "https://http-mainnet.hecochain.com",
-      // gasPrice: 5000000000,  // 5gwei
+      url: "https://http-mainnet-node.huobichain.com",
       accounts,
     },
     bsc: {
-      url: "https://rpc.ankr.com/bsc",
+      url: "https://bsc-dataseed.bnbchain.org",
       accounts,
       chainId: 56,
-      // gasPrice: 5000000000,  // 2 gwei (in wei) (default: 100 gwei)
     },
     bsctest: {
       url: "https://data-seed-prebsc-2-s1.binance.org:8545",

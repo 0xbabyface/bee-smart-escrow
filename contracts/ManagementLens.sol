@@ -179,6 +179,7 @@ contract ManagementLens {
         uint8   decimals;         // decimal
         uint256 sellAmount;      // 交易金额
         uint256 rebateAmount;    //返利金额
+        uint64  timestamp;       // 返利时间
     }
     function getRebateInfo(IBeeSmart smart, uint96 agentId, uint256 offset, uint256 limit)
         external
@@ -223,7 +224,8 @@ contract ManagementLens {
                 symbol:       payToken.symbol(),
                 decimals:     payToken.decimals(),
                 sellAmount:   order.sellAmount,
-                rebateAmount: rebate.amount
+                rebateAmount: rebate.amount,
+                timestamp:    order.updatedAt
             });
             ++j;
 
