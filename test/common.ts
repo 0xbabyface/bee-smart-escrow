@@ -79,7 +79,7 @@ export async function deployBeeSmarts() {
   await USDT.connect(seller).approve(smart.target, ethers.parseEther("1000000000"));
 
   const agentManager = await ethers.getContractAt("AgentManager", AgentManagerProxy.target);
-  await agentManager.connect(owner).addTopAgent(agent1.address, 3, true, 'top agent', operatorWallet);
+  await agentManager.connect(owner).addTopAgent(agent1.address, 3, 'top agent', operatorWallet);
 
   return { smart, operator, agentManager, buyer, seller, agent4, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet, operatorWallet, globalShareWallet };
 }

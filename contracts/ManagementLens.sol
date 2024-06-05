@@ -144,7 +144,6 @@ contract ManagementLens {
         address    selfWallet;        // 钱包地址
         uint96     parentId;          // 父代理ID
         StarLevel  starLevel;         // 星级
-        bool       canAddSubAgent;    // 是否允许增加下级
         bool       removed;           // 是否已经被删除
         bool       isGlobalAgent;     // 是否全球代理
         address[]  subAgents;         // 子代理账号
@@ -159,7 +158,6 @@ contract ManagementLens {
             selfWallet:     agent.selfWallet,
             parentId:       agent.parentId,
             starLevel:      agent.starLevel,
-            canAddSubAgent: agent.canAddSubAgent,
             removed:        agent.removed,
             isGlobalAgent:  smart.agentMgr().isGlobalAgent(wallet),
             subAgents:      smart.agentMgr().getSubAgents(wallet),

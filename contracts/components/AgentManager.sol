@@ -11,7 +11,6 @@ struct Agent {
     address                  selfWallet;        // wallet address
     uint96                   parentId;      // parent id
     StarLevel                starLevel;     // star level
-    bool                     canAddSubAgent;// if this agent can has its own sub agent
     bool                     removed;
     string                   nickName;
 }
@@ -44,7 +43,7 @@ contract AgentManager is Initializable {
 
     IBeeSmart     smart;
 
-    event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel, bool canAddSubAgent);
+    event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel);
     event AgentStarLevelChanged(address indexed agent, StarLevel oldStarLevel, StarLevel newStarLevel);
     event AgentAbilityChanged(address indexed agent, bool oldAbility, bool newAbility);
     event AgentRemoved(address indexed operator, address indexed agent);
@@ -111,7 +110,6 @@ contract AgentManager is Initializable {
     function addTopAgent(
         address agent,
         StarLevel starLevel,
-        bool canAddSubAgent,
         string memory nickName,
         address operatorWallet
     )
@@ -129,7 +127,6 @@ contract AgentManager is Initializable {
         newAgent.selfWallet     = agent;
         newAgent.parentId       = RootId;
         newAgent.starLevel      = starLevel;
-        newAgent.canAddSubAgent = canAddSubAgent;
         newAgent.removed        = false;
         newAgent.nickName       = nickName;
 
@@ -144,7 +141,7 @@ contract AgentManager is Initializable {
         smart.onNewAgent(agent, newAgent.selfId);
         smart.onNewTopAgent(newAgent.selfId, operatorWallet);
 
-        emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
+        emit AgentAdded(RootWallet, agent, starLevel);
     }
 
     // CAUTION: if too many levels of agents, DDOS happens
@@ -166,7 +163,6 @@ contract AgentManager is Initializable {
         address fatherAgent,
         address sonAgent,
         StarLevel starLevel,
-        bool canAddSubAgent,
         string memory nickName
     )
         external
@@ -196,7 +192,6 @@ contract AgentManager is Initializable {
         newAgent.selfWallet     = sonAgent;
         newAgent.parentId       = upAgent.selfId;
         newAgent.starLevel      = starLevel;
-        newAgent.canAddSubAgent = canAddSubAgent;
         newAgent.removed        = false;
         newAgent.nickName       = nickName;
 
@@ -209,7 +204,7 @@ contract AgentManager is Initializable {
 
         smart.onNewAgent(sonAgent, newAgent.selfId);
 
-        emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel, canAddSubAgent);
+        emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel);
 
         return newAgent.selfId;
     }
@@ -322,28 +317,6 @@ contract AgentManager is Initializable {
         subAgent.starLevel = newStarLevel;
 
         emit AgentStarLevelChanged(agent, oldStarLevel, newStarLevel);
-    }
-    // only top agent and father agent can do this
-    function setAgentAbility(
-        address agent,
-        bool newAbility
-    )
-        external
-        onlyValidAgent(agent)
-    {
-        require(
-            isSubAgent(msg.sender, agent) ||
-            hasAdminRole(msg.sender),
-            "only owner or agent's father"
-        );
-
-        Agent storage subAgent = agents[agent];
-        bool oldAbility = subAgent.canAddSubAgent;
-        require(oldAbility != newAbility, "star level not changed");
-
-        subAgent.canAddSubAgent = newAbility;
-
-        emit AgentAbilityChanged(agent, oldAbility, newAbility);
     }
 
     /**
