@@ -11,7 +11,6 @@ contract ManagementLens {
         address   agentMgr;                 // 代理管理合约
 
         address   communityWallet;          // 社区钱包
-        address   operatorWallet;           // 运营钱包
         address   globalShareWallet;        // 全球分享合约
 
         uint64    orderStatusDurationSec;   // 交易状态进行时间(秒数), 默认 30 * 60 s
@@ -125,7 +124,6 @@ contract ManagementLens {
             reputation:              address(smart.reputation()),
             agentMgr:                address(smart.agentMgr()),
             communityWallet:         smart.communityWallet(),
-            operatorWallet:          smart.operatorWallet(),
             globalShareWallet:       smart.globalShareWallet(),
             orderStatusDurationSec:  smart.orderStatusDurationSec(),
             communityFeeRatio:       smart.communityFeeRatio(),
@@ -151,6 +149,7 @@ contract ManagementLens {
         bool       isGlobalAgent;     // 是否全球代理
         address[]  subAgents;         // 子代理账号
         string     nickName;          //
+        address    operatorWallet;    // 运营钱包
     }
     function getAgentInfo(IBeeSmart smart, address wallet) external view returns(AgentInfo memory) {
         Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
@@ -164,7 +163,8 @@ contract ManagementLens {
             removed:        agent.removed,
             isGlobalAgent:  smart.agentMgr().isGlobalAgent(wallet),
             subAgents:      smart.agentMgr().getSubAgents(wallet),
-            nickName:       agent.nickName
+            nickName:       agent.nickName,
+            operatorWallet: smart.getOperatorWallet(wallet)
         });
 
         return a;

@@ -39,7 +39,6 @@ contract BeeSmartStorage {
     AgentManager  public agentMgr;
 
     address       public communityWallet;
-    address       public operatorWallet;
     address       public globalShareWallet;
 
     uint64        public orderStatusDurationSec; // 30 minutes waiting for order status
@@ -56,6 +55,8 @@ contract BeeSmartStorage {
     mapping(address => EnumerableSet.UintSet) userLockedOrders;
     // trader address => agent id
     mapping(address => uint192) public boundAgents;
+    // operatorId => operator wallet
+    mapping(uint96 => address) public operatorWallets;
 
     // address => payToken => rewards
     mapping(address => mapping(address => uint256)) public pendingRewards;

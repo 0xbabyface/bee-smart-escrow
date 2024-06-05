@@ -20,7 +20,7 @@ interface IBeeSmart {
     function boundAgents(address user) external view returns(uint192);
     function agentMgr() external view returns(AgentManager);
     function communityWallet() external view returns(address);
-    function operatorWallet() external view returns(address);
+    function getOperatorWallet(address wallet) external view returns(address);
     function globalShareWallet() external view returns(address);
     function orderStatusDurationSec() external view returns(uint64);
     function communityFeeRatio() external view returns(uint256);
@@ -39,4 +39,5 @@ interface IBeeSmart {
     function getAgentRebateLength(uint96 agentId) external view returns(uint256);
     function getAgentRebate(uint96 agentId, uint256 index) external view returns(Order.Rebates memory);
     function onNewAgent(address agent, uint96 agentId) external;
+    function onNewTopAgent(uint96 agentId, address operatorWallet) external;
 }

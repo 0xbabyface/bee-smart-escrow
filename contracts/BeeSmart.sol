@@ -42,7 +42,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         address[] memory communities,
         address[] memory payTokens,
         address _communityWallet,
-        address _agentWallet,
         address _globalWallet
     )
         external
@@ -74,7 +73,6 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         disputeWinnerFeeRatio   = 0.03E18;
 
         communityWallet     = _communityWallet;
-        operatorWallet      = _agentWallet;
         globalShareWallet   = _globalWallet;
     }
 
@@ -88,12 +86,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
 
-    function setOperatorWallet(address w) external onlyRole(AdminRole) {
+    function setOperatorWallet(uint96 operaotrId, address w) external onlyRole(AdminRole) {
+        uint96 key = operaotrId / 1e6;
         require(w != address(0), "wallet is null");
-        require(w != operatorWallet, "same wallet");
+        require(w != operatorWallets[key], "same wallet");
 
-        address oldWallet = operatorWallet;
-        operatorWallet = w;
+        address oldWallet = operatorWallets[key];
+        operatorWallets[key] = w;
         emit OperatorWalletSet(msg.sender, oldWallet, w);
     }
 
@@ -221,6 +220,13 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             userId = uint96(boundAgents[agent] >> 96);
         }
         boundAgents[agent] = (uint192(userId) << 96) + uint192(agentId);
+    }
+
+    function onNewTopAgent(uint96 agentId, address operatorWallet) external {
+         require(msg.sender == address(agentMgr), "only agent manager");
+         uint96 operatorId = agentId / 1e6;
+
+         operatorWallets[operatorId] = operatorWallet;
     }
 
     // agents and community and any one claim reward
@@ -470,6 +476,11 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         return agentRebates[agentId][index];
     }
 
+    function getOperatorWallet(address wallet) public view returns(address) {
+        uint96 operatorId = uint96(boundAgents[wallet]) / 1e6;
+        return operatorWallets[operatorId];
+    }
+
 // --------------------- internal functions -------------------------------
     function releaseToBuyer(Order.Record storage order, bool chargeDisputeWinnerFee) internal returns(uint256) {
         uint256 buyerFee     = order.sellAmount * chargesBaredBuyerRatio / RatioPrecision;
@@ -520,6 +531,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     {
         if (totalFee == 0) return;
         // dispatch fee to agents and community
+        address operatorWallet = getOperatorWallet(trader);
+
         FeeParams memory p = FeeParams(0,0,0,0);
         p.communityFee = totalFee * communityFeeRatio / RatioPrecision;
         p.operatorFee  = totalFee * operatorFeeRatio / RatioPrecision;

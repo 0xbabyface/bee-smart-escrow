@@ -232,6 +232,7 @@ contract BeeSmartLens {
     }
 
     struct UserInfo {
+        uint96 userId;
         uint96 agentId;
         uint256 airdropCount;
         uint256 reputationCount;
@@ -242,11 +243,14 @@ contract BeeSmartLens {
     function getUserInfo(IBeeSmart smart, address wallet) public view returns(UserInfo memory) {
         IReputation reputation = smart.reputation();
 
-        uint96 relationId = uint96(smart.boundAgents(wallet) >> 96);
+        uint192 boundId = smart.boundAgents(wallet);
+        uint96 userId = uint96(boundId >> 96);
+        uint96 agentId = uint96(boundId);
         address[] memory tradableTokens = smart.getSupportTokens();
 
         UserInfo memory info = UserInfo({
-            agentId: relationId,
+            userId: userId,
+            agentId: agentId,
             airdropCount: smart.airdropPoints(wallet),
             reputationCount: reputation.reputationPoints(wallet),
             totalTrades: smart.getLengthOfBuyOrders(wallet) + smart.getLengthOfSellOrders(wallet),

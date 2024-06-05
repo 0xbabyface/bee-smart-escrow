@@ -27,7 +27,7 @@ contract AgentManager is Initializable {
     using EnumerableSet for EnumerableSet.UintSet;
     uint96  public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
-
+    uint96 constant E6 = 10 ** 6;
     // wallet address => Agent
     mapping(address => Agent) agents;
     // wallet address => wallets of sub agents
@@ -39,8 +39,8 @@ contract AgentManager is Initializable {
     // star level => share fee ratio
     mapping(StarLevel => uint256) public shareFeeRatio;
 
+    uint96 public operatorId;
     uint96 public totalAgents;
-    uint96        idCounter; // should be removed
 
     IBeeSmart     smart;
 
@@ -83,9 +83,9 @@ contract AgentManager is Initializable {
         _;
     }
 
-    function nextId() internal returns(uint96) {
+    function nextId(uint96 key) internal returns(uint96) {
         ++totalAgents;
-        return RootId + totalAgents;
+        return  key * E6 + totalAgents;
     }
 
     constructor() {
@@ -94,6 +94,7 @@ contract AgentManager is Initializable {
 
     function initialize(IBeeSmart _smart) external initializer {
         smart = _smart;
+        operatorId = 800;
 
         Agent storage rootAgent = agents[RootWallet];
         rootAgent.selfId     = RootId;
@@ -111,7 +112,8 @@ contract AgentManager is Initializable {
         address agent,
         StarLevel starLevel,
         bool canAddSubAgent,
-        string memory nickName
+        string memory nickName,
+        address operatorWallet
     )
         external
         validStarLevel(starLevel)
@@ -119,6 +121,7 @@ contract AgentManager is Initializable {
     {
         require(!subAgents[RootWallet].contains(agent), "already added");
         require(agent != address(0) && agent != RootWallet, "invalid agent wallet");
+        require(operatorWallet != address(0), "invalid operator wallet");
 
         subAgents[RootWallet].add(agent);
 
@@ -132,12 +135,14 @@ contract AgentManager is Initializable {
 
         // if this `agent` has been removed some time, its `selfId` should be kept
         if (newAgent.selfId == 0) {
-            newAgent.selfId = nextId();
+            newAgent.selfId = nextId(operatorId);
+            ++operatorId;
         }
 
         agentId2Wallet[newAgent.selfId] = agent;
 
         smart.onNewAgent(agent, newAgent.selfId);
+        smart.onNewTopAgent(newAgent.selfId, operatorWallet);
 
         emit AgentAdded(RootWallet, agent, starLevel, canAddSubAgent);
     }
@@ -171,15 +176,9 @@ contract AgentManager is Initializable {
     {
         // should judge next conditions
         // 1. msg.sender is a agent who can add sub agent.
-        require(
-            !agents[msg.sender].removed && agents[msg.sender].canAddSubAgent,
-            "operator address is invalid"
-        );
-        // 2. fatherAgent is a sub agent of msg.sender, no matter fatherAgent can add sub agent or not.
-        require(
-            msg.sender == fatherAgent || isSubAgent(msg.sender, fatherAgent),
-            "only agent's father"
-        );
+        address operatorWallet = smart.getOperatorWallet(fatherAgent);
+        require(operatorWallet == msg.sender, "only operator wallet");
+
         // 3. son agent is valid.
         require(
             agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
@@ -203,7 +202,7 @@ contract AgentManager is Initializable {
 
         // if this `agent` has been removed some time, its `selfId` should be kept
         if (newAgent.selfId == 0) {
-            newAgent.selfId = nextId();
+            newAgent.selfId = nextId(upAgent.selfId / E6);
         }
 
         agentId2Wallet[newAgent.selfId] = sonAgent;
@@ -224,10 +223,12 @@ contract AgentManager is Initializable {
         address sonAgent
     )
         external
-        onlyTopAgent(msg.sender)
         onlyValidAgent(fatherAgent)
         onlyValidAgent(sonAgent)
     {
+        address operatorWallet = smart.getOperatorWallet(fatherAgent);
+        require(operatorWallet == msg.sender, "only operator wallet");
+
         require(
             isSubAgent(fatherAgent, sonAgent),
             "not your sub agent"
@@ -258,12 +259,13 @@ contract AgentManager is Initializable {
     )
         external
         onlyValidAgent(oldWallet)
+        onlyAdmin
     {
-        require(
-            agents[oldWallet].selfWallet == msg.sender ||
-            hasAdminRole(msg.sender),
-            "only owner or agent himself"
-        );
+        // require(
+        //     agents[oldWallet].selfWallet == msg.sender ||
+        //     hasAdminRole(msg.sender),
+        //     "only owner or agent himself"
+        // );
 
         require(oldWallet != newWallet, "wallet not changed");
         require(newWallet != address(0) && newWallet != RootWallet, "new wallet is invalid");

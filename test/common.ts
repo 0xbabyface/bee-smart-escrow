@@ -30,7 +30,6 @@ export async function deployBeeSmarts() {
   let communityWallet = communitier.address;
   let operatorWallet = operator.address;
   let globalShareWallet = globalShare.address;
-  let agentManagerOwner = owner.address;
   let adminship = owner.address;
 
 
@@ -42,7 +41,6 @@ export async function deployBeeSmarts() {
     smartCommunities,
     payTokens,
     communityWallet,
-    operatorWallet,
     globalShareWallet
   ]);
   const BeeSmartProxy = await ethers.deployContract("CommonProxy", [BeeSmart.target, initializeData, adminship]);
@@ -81,9 +79,9 @@ export async function deployBeeSmarts() {
   await USDT.connect(seller).approve(smart.target, ethers.parseEther("1000000000"));
 
   const agentManager = await ethers.getContractAt("AgentManager", AgentManagerProxy.target);
-  await agentManager.addTopAgent(agent1.address, 3, true, 'top agent');
+  await agentManager.connect(owner).addTopAgent(agent1.address, 3, true, 'top agent', operatorWallet);
 
-  return { smart, agentManager, buyer, seller, agent4, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet, operatorWallet, globalShareWallet };
+  return { smart, operator, agentManager, buyer, seller, agent4, agent3, agent2, agent1, communitier, USDC, USDT, Reputation, communityWallet, operatorWallet, globalShareWallet };
 }
 
 export async function forwardBlockTimestamp(forwardSecs: number) {
