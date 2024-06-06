@@ -6,6 +6,13 @@ import "./IBeeSmart.sol";
 
 contract ManagementLens {
 
+    uint16 constant RoleCommon    = 0x00;
+    uint16 constant RoleAdmin     = 0x01;
+    uint16 constant RoleCommunity = 0x02;
+    uint16 constant RoleOperator  = 0x04;
+    uint16 constant RoleTopAgent  = 0x08;
+    uint16 constant RoleAgent     = 0x10;
+
     struct SysSettings {
         address   reputation;               // 声誉合约
         address   agentMgr;                 // 代理管理合约
@@ -24,7 +31,6 @@ contract ManagementLens {
         uint256   disputeWinnerFeeRatio;    // 争议处理费比例:  交易额 * 比例
     }
 
-    enum Role {Common, Admin, Community, Agent, TopAgent }
     struct RewardInfo {
         address tokenAddress;
         string  symbol;
@@ -33,7 +39,7 @@ contract ManagementLens {
     }
 
     struct UserInfo {
-        Role role;
+        uint16 role;
         RewardInfo[] rewards;
     }
 
@@ -85,16 +91,17 @@ contract ManagementLens {
     }
 
     function getRole(IBeeSmart smart, address wallet) external view returns(UserInfo memory) {
-        Role r;
-        if (smart.hasRole(smart.AdminRole(), wallet)) r = Role.Admin;
-        else if (smart.hasRole(smart.CommunityRole(), wallet)) r = Role.Community;
+        uint16 r = RoleCommon;
+        if (smart.hasRole(smart.AdminRole(), wallet))     r += RoleAdmin;
+        if (smart.hasRole(smart.CommunityRole(), wallet)) r += RoleCommunity;
+        if (smart.getOperatorWallet(wallet) == wallet)    r += RoleOperator;
 
         Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
         if (agent.selfId != 0) {
             if (agent.parentId == smart.agentMgr().RootId())
-                r = Role.TopAgent;
+                r += RoleTopAgent;
             else
-                r = Role.Agent;
+                r += RoleAgent;
         }
 
         address[] memory supportTokens = smart.getSupportTokens();
