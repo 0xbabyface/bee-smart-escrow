@@ -86,8 +86,8 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         emit CommunityWalletSet(msg.sender, oldWallet, w);
     }
 
-    function setOperatorWallet(uint96 operaotrId, address w) external onlyRole(AdminRole) {
-        uint96 key = operaotrId / 1e6;
+    function setOperatorWallet(uint96 agentId, address w) external onlyRole(AdminRole) {
+        uint96 key = agentId / 1e6;
         require(w != address(0), "wallet is null");
         require(w != operatorWallets[key], "same wallet");
 

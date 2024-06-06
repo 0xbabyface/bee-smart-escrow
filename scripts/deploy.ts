@@ -43,7 +43,6 @@ async function main() {
       smartCommunities,
       payTokens,
       communityWallet,
-      operatorWallet,
       globalShareWallet,
     ]
   );
