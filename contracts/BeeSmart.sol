@@ -93,6 +93,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
         address oldWallet = operatorWallets[key];
         operatorWallets[key] = w;
+        operatorWallets2Id[w] = key;
         emit OperatorWalletSet(msg.sender, oldWallet, w);
     }
 

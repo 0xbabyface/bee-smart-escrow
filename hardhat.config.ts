@@ -56,8 +56,8 @@ const config: HardhatUserConfig = {
       url: "https://rpc.fantom.gateway.fm",
       accounts,
     },
-    mumbai: {
-      url: "https://rpc.ankr.com/polygon_mumbai",
+    amoy: {
+      url: "https://rpc-amoy.polygon.technology",
       accounts,
     },
     heco: {

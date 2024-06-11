@@ -27,23 +27,26 @@ async function main() {
   // console.log(`subAgents:       ${agents[7]}`);
 
   const agentManager = await ethers.getContractAt('AgentManager', contracts.AgentManagerProxy);
+  console.log(`id: ${await agentManager.getAgentByWallet('0x8b5fBcd217d2913f33A2Ef126EaA11dEcD6C9Fb3')}`)
+  // const totalAgentsCount = await agentManager.totalAgents();
+  // console.log(`total: ${totalAgentsCount}`)
 
-  const totalAgentsCount = await agentManager.totalAgents();
-  console.log(`total: ${totalAgentsCount}`)
+  // const operatorId = await agentManager.operatorId();
 
-  const rootId = await agentManager.RootId();
 
-  for (let i = 1; i <= totalAgentsCount; i++) {
-    const aid = rootId + BigInt(i);
-    const a = await agentManager.agentId2Wallet(aid);
+  // const rootId = await agentManager.RootId();
 
-    console.log(`${aid} => ${a}`);
-    const wallet = await agentManager.agentId2Wallet(rootId + BigInt(i));
-    // console.log(`${JSON.stringify(agent, null, "  ")}`);
-    const subAgents = await agentManager.getSubAgents(wallet);
-    if (subAgents.length > 0)
-      console.log(`${wallet},  subAgents: ${subAgents}`);
-  }
+  // for (let i = 1; i <= totalAgentsCount; i++) {
+  //   const aid = rootId + BigInt(i);
+  //   const a = await agentManager.agentId2Wallet(aid);
+
+  //   console.log(`${aid} => ${a}`);
+  //   const wallet = await agentManager.agentId2Wallet(rootId + BigInt(i));
+  //   // console.log(`${JSON.stringify(agent, null, "  ")}`);
+  //   const subAgents = await agentManager.getSubAgents(wallet);
+  //   if (subAgents.length > 0)
+  //     console.log(`${wallet},  subAgents: ${subAgents}`);
+  // }
 }
 
 main();

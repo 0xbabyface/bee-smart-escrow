@@ -10,14 +10,14 @@
         "TestUSDC":           "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
       },
 
-    "mumbai": {
-      "BeeSmartProxy":      "0x0Cd70735A61f5b05e0473CF60ad69F4dc35c47B1",
-      "AgentManagerProxy":  "0xDd9d7a33b982C437aA40ea5DA7402C6Cc0Ec5765",
-      "Reputation":         "0xc72633364946A50c46909186eb723AE981333025",
-      "BeeSmart":           "0xbaEc625e69a3B1f5010055A5C65ac75eF31E4a57",
-      "BeeSmartLens":       "0xc4B88c33Bf2CFC1897257018bC8900C053c544CA",
-      "ManagementLens":     "0x0d85C1Ee82af3D4Db2A8dad271C5692B1e97B709",
-      "TestUSDT":           "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
-      "TestUSDC":           "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
+    "amoy": {
+      "BeeSmartProxy":      "0x856b6bf21f3cde40117b7e9d4bc5c82a7a924228",
+      "AgentManagerProxy":  "0xEDcAd7cCc2c3E8CadF02E7e49cc6e2a847499B27",
+      "Reputation":         "0xd43c151fb76b9c648d1aafe4d58e47018940e065",
+      "BeeSmart":           "0x1263cfc34a779be204ec467997c7db66cf90008d",
+      "BeeSmartLens":       "0xcda7f47eb7947af6a166a71b93e2a58040e32244",
+      "ManagementLens":     "0x487BC047F81258f7AC36AAAEb529b8FcdCe4D248",
+      "TestUSDT":           "0x66803b16cfcd7af1b49f9d584c654cdcfc72bf51",
+      "TestUSDC":           "0x94a1a696e7fb537b55ea2edc135c0744637b79e7"
     }
 }

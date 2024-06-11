@@ -94,7 +94,7 @@ contract ManagementLens {
         uint16 r = RoleCommon;
         if (smart.hasRole(smart.AdminRole(), wallet))     r += RoleAdmin;
         if (smart.hasRole(smart.CommunityRole(), wallet)) r += RoleCommunity;
-        if (smart.getOperatorWallet(wallet) == wallet)    r += RoleOperator;
+        if (smart.operatorWallets2Id(wallet) != 0)        r += RoleOperator;
 
         Agent memory agent = smart.agentMgr().getAgentByWallet(wallet);
         if (agent.selfId != 0) {

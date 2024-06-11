@@ -9,6 +9,10 @@ async function main() {
   let tx = await proxy.setImplementation(BeeSmart.target, "0x");
   await tx.wait();
 
+  let impl = await ethers.getContractAt('BeeSmart', contracts.BeeSmartProxy);
+  tx = await impl.fixdata();
+  await tx.wait();
+
   console.log(`update bee smart to ${BeeSmart.target} : ${tx.hash}`);
 }
 

@@ -6,13 +6,11 @@ async function main() {
   const smart = await ethers.getContractAt("BeeSmart", contracts.BeeSmartProxy);
 
   const communityWallet = await smart.communityWallet();
-  const operatorWallet = await smart.operatorWallet();
   const globalWallet = await smart.globalShareWallet();
 
   console.log(`totalOrdersCount:          ${await smart.totalOrdersCount()}`);
   console.log(`reputation contract:       ${await smart.reputation()}`);
   console.log(`communityWallet:           ${communityWallet}`);
-  console.log(`operatorWallet:            ${operatorWallet}`);
   console.log(`globalWallet:              ${globalWallet}`);
   console.log(`communityFeeRatio:         ${ethers.formatEther(await smart.communityFeeRatio())}`);
   console.log(`operatorFeeRatio:          ${ethers.formatEther(await smart.operatorFeeRatio())}`);
@@ -21,7 +19,6 @@ async function main() {
   console.log(`chargesBaredBuyerRatio:    ${ethers.formatEther(await smart.chargesBaredBuyerRatio())}`);
   console.log(`chargesBaredSellerRatio:   ${ethers.formatEther(await smart.chargesBaredSellerRatio())}`);
   console.log(`communityPending:          ${ethers.formatEther(await smart.pendingRewards(communityWallet, contracts.TestUSDT))}`);
-  console.log(`operatorPending:           ${ethers.formatEther(await smart.pendingRewards(operatorWallet, contracts.TestUSDT))}`);
   console.log(`globalPending:             ${ethers.formatEther(await smart.pendingRewards(globalWallet, contracts.TestUSDT))}`);
 
   console.log(`orderStatusDurationSec:    ${await smart.orderStatusDurationSec()}`);

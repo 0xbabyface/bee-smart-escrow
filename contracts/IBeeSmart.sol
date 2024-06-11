@@ -40,4 +40,5 @@ interface IBeeSmart {
     function getAgentRebate(uint96 agentId, uint256 index) external view returns(Order.Rebates memory);
     function onNewAgent(address agent, uint96 agentId) external;
     function onNewTopAgent(uint96 agentId, address operatorWallet) external;
+    function operatorWallets2Id(address w) external view returns(uint96);
 }

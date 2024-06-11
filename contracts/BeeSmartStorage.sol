@@ -64,4 +64,6 @@ contract BeeSmartStorage {
     mapping(uint96 => mapping(address => uint256)) public agentTradeVolumn;
     // agent id => Order.Rebates[]
     mapping(uint96 => Order.Rebates[]) agentRebates;
+
+    mapping(address => uint96) public operatorWallets2Id;
 }
