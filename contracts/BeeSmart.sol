@@ -228,6 +228,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
          uint96 operatorId = agentId / 1e6;
 
          operatorWallets[operatorId] = operatorWallet;
+         operatorWallets2Id[operatorWallet] = operatorId;
     }
 
     // agents and community and any one claim reward

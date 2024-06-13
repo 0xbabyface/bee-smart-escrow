@@ -7,10 +7,11 @@ async function main() {
 
   // console.log(`BeeSmartLens deployed at: ${BeeSmartLens.target}`);
 
-  const ManagementLens = await ethers.deployContract('ManagementLens');
-  await ManagementLens.waitForDeployment();
+  // const ManagementLens = await ethers.deployContract('ManagementLens');
+  // await ManagementLens.waitForDeployment();
 
-  console.log(`getRole: ${await ManagementLens.getRole(contracts.BeeSmartProxy, "0x9681Dccbdd0cc9B00BF60673C2Bc5c76dbe35cdB")}`)
+  const ManagementLens = await ethers.getContractAt('ManagementLens', contracts.ManagementLens)
+  console.log(`getRole: ${await ManagementLens.getRole(contracts.BeeSmartProxy, "0x22bd48Eb5eeEbA9B9A2FE4F2Fd8983c31B3AC886")}`)
 
   console.log(`Management: ${ManagementLens.target}`);
 }
