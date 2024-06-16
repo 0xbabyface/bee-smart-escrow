@@ -41,4 +41,5 @@ interface IBeeSmart {
     function onNewAgent(address agent, uint96 agentId) external;
     function onNewTopAgent(uint96 agentId, address operatorWallet) external;
     function operatorWallets2Id(address w) external view returns(uint96);
+    function operatorWallets(uint96) external view returns(address);
 }

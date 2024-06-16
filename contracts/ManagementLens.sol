@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IBeeSmart.sol";
-
+import "hardhat/console.sol";
 contract ManagementLens {
 
     uint16 constant RoleCommon    = 0x00;
@@ -173,6 +173,25 @@ contract ManagementLens {
         });
 
         return a;
+    }
+
+    function getAgentInfoByOperator(IBeeSmart smart, address operatorWallet)
+        external
+        view
+        returns(AgentInfo memory a )
+    {
+        address RootWallet   = address(0x000000000000000000000000000000000000dEaD);
+        address[] memory topAgents = smart.agentMgr().getSubAgents(RootWallet);
+        uint256 len = topAgents.length;
+        for (uint i; i < len; ++i) {
+            Agent memory  agt = smart.agentMgr().getAgentByWallet(topAgents[i]);
+            uint96 operatorId = agt.selfId / 1E6;
+            address o = smart.operatorWallets(operatorId);
+            if (o == operatorWallet) {
+                a = this.getAgentInfo(smart, agt.selfWallet);
+                break;
+            }
+        }
     }
 
     struct AgentRebateInfo {

@@ -224,11 +224,15 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     function onNewTopAgent(uint96 agentId, address operatorWallet) external {
-         require(msg.sender == address(agentMgr), "only agent manager");
-         uint96 operatorId = agentId / 1e6;
+        require(msg.sender == address(agentMgr), "only agent manager");
+        require(
+            operatorWallets2Id[operatorWallet] == 0,
+            "operaotr wallet have been used"
+        );
+        uint96 operatorId = agentId / 1e6;
 
-         operatorWallets[operatorId] = operatorWallet;
-         operatorWallets2Id[operatorWallet] = operatorId;
+        operatorWallets[operatorId] = operatorWallet;
+        operatorWallets2Id[operatorWallet] = operatorId;
     }
 
     // agents and community and any one claim reward
