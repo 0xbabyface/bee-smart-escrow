@@ -57,7 +57,7 @@ const config: HardhatUserConfig = {
       accounts,
     },
     amoy: {
-      url: "https://rpc-amoy.polygon.technology",
+      url: "https://rpc-amoy.polygon.technology/",
       accounts,
     },
     heco: {
