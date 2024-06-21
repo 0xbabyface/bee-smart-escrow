@@ -56,11 +56,12 @@ contract SEToken is ERC20Capped, Ownable {
     event SEBought(address indexed buyer, uint256 times);
 
     uint256 public constant MaxSupply     = 400_000_000 *  10**18;
-    address public constant DeadAddress   = 0x000000000000000000000000000000000000dEaD;
     uint256 public constant TotalMintable = MaxSupply / 2;  // 50% for mint
     uint256 public constant TotalBurnable = MaxSupply / 4;  // 25% for burn
-    address public constant usdtReceiver  = 0x6Cd24A63947548fe6290Fe777B6A3419449Ea28F;
+    uint256 public constant FixedLpAmount = MaxSupply / 4;  // 25% for LP, owner holds it
 
+    address public constant DeadAddress     = 0x000000000000000000000000000000000000dEaD;
+    address public constant usdtReceiver    = 0x6Cd24A63947548fe6290Fe777B6A3419449Ea28F;
     address public constant nftShareAddress = 0x4c6F3f6606ae063DB221CD60eCB8C9F6d085C731;
     address public constant lpShareAddress  = 0x8b7D471e1496b04164baF6b4dc7d41a5de46Ff16;
     address public constant ecoFundAddress  = 0x1a08C6f79440656536c027Cb9ab0cB671Ce6c7Ad;
@@ -88,6 +89,7 @@ contract SEToken is ERC20Capped, Ownable {
         MintPrice = 40 * 10**usdtDecimals;
 
         _mint(DeadAddress, TotalBurnable);  // burn 25%
+        _mint(msg.sender, FixedLpAmount);   // 25% for LP
     }
 
     function setStartTimeForSwap(uint256 _startTime) external onlyOwner {
@@ -112,7 +114,7 @@ contract SEToken is ERC20Capped, Ownable {
         override
         returns (bool)
     {
-        beforeTransfer(msg.sender, recipient, amount);
+        execTransfer(msg.sender, recipient, amount);
         return true;
     }
 
@@ -121,77 +123,78 @@ contract SEToken is ERC20Capped, Ownable {
         address recipient,
         uint256 amount
     ) public override returns (bool) {
-        beforeTransfer(sender, recipient, amount);
-        _approve(
-            sender,
-            msg.sender,
-            allowance(sender, msg.sender) - amount
-        );
+        _spendAllowance(sender, msg.sender, amount);
+        execTransfer(sender, recipient, amount);
         return true;
     }
 
-    function beforeTransfer(
+    function execTransfer(
         address from,
         address to,
         uint256 amount
     ) private {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
-        if (from == uniswapV2Pair || to == uniswapV2Pair) {
-            require(block.timestamp >= startTimeForSwap, "SEToken: swap not started");
-        }
 
-        uint256 taxAmount = 0;
+        if (tx.origin != owner()) {
+            if (from == uniswapV2Pair || to == uniswapV2Pair) {
+                require(block.timestamp >= startTimeForSwap, "SEToken: swap not started");
+            }
 
-        if (from == uniswapV2Pair) {
-            if (_isRemoveLiquidity()) { // for remove liquidity
-                taxAmount = amount * 20 / 100; // 20% for removing liquidity
-                shareRemoveLiquidtyTax(taxAmount);
-            } else { // for buy SE
+            uint256 taxAmount = 0;
+            if (from == uniswapV2Pair) {
+                if (_isRemoveLiquidity()) { // for remove liquidity
+                    taxAmount = amount * 20 / 100; // 20% for removing liquidity
+                    shareRemoveLiquidtyTax(taxAmount);
+                } else { // for buy SE
+                    // 设定开盘时间，开盘滑点：1分钟，买卖30%，2～30分钟，买5%，卖30%，30～59分钟，买5%卖10；1小时后后正常税点。高税收入流入生态激励池
+                    if (block.timestamp - startTimeForSwap < 1 minutes) {
+                        taxAmount = amount * 30 / 100; // 30% for buying SE
+                        highTaxRateShare(taxAmount);
+                    } else if (block.timestamp - startTimeForSwap < 30 minutes) {
+                        taxAmount = amount * 5 / 100; // 5% for buying SE
+                        highTaxRateShare(taxAmount);
+                    } else if (block.timestamp - startTimeForSwap < 59 minutes) {
+                        taxAmount = amount * 5 / 100; // 5% for buying SE
+                        highTaxRateShare(taxAmount);
+                    } else {
+                        taxAmount = amount * 5 / 100; // 5% for buying SE
+                        shareBuySellTax(taxAmount);
+                    }
+                }
+            }
+
+            if (to == uniswapV2Pair) {
+                if (_isAddLiquidity()) { // for add liquidity
+                    taxAmount = amount * 1 / 100; // 1% for adding liquidity to lp
+                    shareAddLiquidityTax(taxAmount);
+                } else { // for sell SE
                 // 设定开盘时间，开盘滑点：1分钟，买卖30%，2～30分钟，买5%，卖30%，30～59分钟，买5%卖10；1小时后后正常税点。高税收入流入生态激励池
-                if (block.timestamp - startTimeForSwap < 1 minutes) {
-                    taxAmount = amount * 30 / 100; // 30% for buying SE
-                    highTaxRateShare(taxAmount);
-                } else if (block.timestamp - startTimeForSwap < 30 minutes) {
-                    taxAmount = amount * 5 / 100; // 5% for buying SE
-                    highTaxRateShare(taxAmount);
-                } else if (block.timestamp - startTimeForSwap < 59 minutes) {
-                    taxAmount = amount * 5 / 100; // 5% for buying SE
-                    highTaxRateShare(taxAmount);
-                } else {
-                    taxAmount = amount * 5 / 100; // 5% for buying SE
-                    shareBuySellTax(taxAmount);
+                    if (block.timestamp - startTimeForSwap < 1 minutes) {
+                        taxAmount = amount * 30 / 100; // 30% for selling SE
+                        highTaxRateShare(taxAmount);
+                    } else if (block.timestamp - startTimeForSwap < 30 minutes) {
+                        taxAmount = amount * 30 / 100; // 30% for selling SE
+                        highTaxRateShare(taxAmount);
+                    } else if (block.timestamp - startTimeForSwap < 59 minutes) {
+                        taxAmount = amount * 10 / 100; // 10% for selling SE
+                        highTaxRateShare(taxAmount);
+                    } else {
+                        taxAmount = amount * 5 / 100; // 5% for normal selling SE
+                        shareBuySellTax(taxAmount);
+                    }
                 }
             }
+
+            amount -= taxAmount;
+            amount = amount * 998 / 1000; // 0.2% for holding
         }
 
-        if (to == uniswapV2Pair) {
-            if (_isAddLiquidity()) { // for add liquidity
-                taxAmount = amount * 1 / 100; // 1% for adding liquidity to lp
-                shareAddLiquidityTax(taxAmount);
-            } else { // for sell SE
-             // 设定开盘时间，开盘滑点：1分钟，买卖30%，2～30分钟，买5%，卖30%，30～59分钟，买5%卖10；1小时后后正常税点。高税收入流入生态激励池
-                if (block.timestamp - startTimeForSwap < 1 minutes) {
-                    taxAmount = amount * 30 / 100; // 30% for selling SE
-                    highTaxRateShare(taxAmount);
-                } else if (block.timestamp - startTimeForSwap < 30 minutes) {
-                    taxAmount = amount * 30 / 100; // 30% for selling SE
-                    highTaxRateShare(taxAmount);
-                } else if (block.timestamp - startTimeForSwap < 59 minutes) {
-                    taxAmount = amount * 10 / 100; // 10% for selling SE
-                    highTaxRateShare(taxAmount);
-                } else {
-                    taxAmount = amount * 5 / 100; // 5% for normal selling SE
-                    shareBuySellTax(taxAmount);
-                }
-            }
-        }
-
-        super._transfer(from, to, amount - taxAmount);
+        super._transfer(from, to, amount);
     }
 
     function _isRemoveLiquidity() internal view returns(bool ldxDel){
-        (uint r0,uint r1,) = IUniswapV2Pair(address(uniswapV2Pair)).getReserves();
+        (uint r0, ,) = IUniswapV2Pair(address(uniswapV2Pair)).getReserves();
         uint bal0 = IERC20(token0).balanceOf(address(uniswapV2Pair));
         if( bal0 < r0){
             uint change0 = r0 - bal0;
@@ -200,7 +203,7 @@ contract SEToken is ERC20Capped, Ownable {
     }
 
 	function _isAddLiquidity()internal view returns(bool ldxAdd){
-        (uint r0,uint r1,) = IUniswapV2Pair(address(uniswapV2Pair)).getReserves();
+        (uint r0, ,) = IUniswapV2Pair(address(uniswapV2Pair)).getReserves();
         uint bal = IERC20(token0).balanceOf(address(uniswapV2Pair));
 
         if( bal > r0){
