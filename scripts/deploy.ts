@@ -37,8 +37,9 @@ async function main() {
   adminship = owner.address;
   // ------------------
 
-  // const BeeSmart = await ethers.deployContract("BeeSmart");
+  // const BeeSmart = await ethers.deployContract("BeeSmart", {gasPrice: 30000000000});
   // await BeeSmart.waitForDeployment();
+
   // const initializeData = BeeSmart.interface.encodeFunctionData(
   //   "initialize",
   //   [
@@ -50,61 +51,66 @@ async function main() {
   //   ]
   // );
 
-  // const BeeSmartProxy = await ethers.deployContract("CommonProxy", [BeeSmart.target, initializeData, adminship]);
+  // const BeeSmartProxy = await ethers.deployContract("CommonProxy", [BeeSmart.target, initializeData, adminship], {gasPrice: 30000000000});
   // await BeeSmartProxy.waitForDeployment();
 
-  const BeeSmartProxy = {target: "0x856B6bf21f3CdE40117B7E9D4bc5c82A7a924228"}
+  const BeeSmartProxy = {target: "0xe5390EB434544F55d0dFeEf1286B3FFA691e517F"}
 
   console.log(`BeeSmartProxy: ${BeeSmartProxy.target}`)
 
-  // const AgentManager = await ethers.deployContract("AgentManager");
+  // const AgentManager = await ethers.deployContract("AgentManager", {gasPrice: 30000000000});
   // await AgentManager.waitForDeployment();
   // const agentInit = AgentManager.interface.encodeFunctionData(
   //   'initialize',
   //   [BeeSmartProxy.target]
   // );
-  // const AgentManagerProxy = await ethers.deployContract("CommonProxy", [AgentManager.target, agentInit, adminship]);
+  // const AgentManagerProxy = await ethers.deployContract("CommonProxy", [AgentManager.target, agentInit, adminship], {gasPrice: 30000000000});
   // await AgentManagerProxy.waitForDeployment();
 
-  const AgentManagerProxy = {target: "0xEDcAd7cCc2c3E8CadF02E7e49cc6e2a847499B27"}
+  const AgentManagerProxy = {target: "0x8c07F390Ae85A757641365246BC5Df2596eEa712"}
 
-  // console.log(`AgentManagerProxy: ${AgentManagerProxy.target}`)
+  console.log(`AgentManagerProxy: ${AgentManagerProxy.target}`)
 
   // const BeeSmartLens = await ethers.deployContract("BeeSmartLens");
   // await BeeSmartLens.waitForDeployment();
 
-  // const ManagementLens = await ethers.deployContract("ManagementLens");
+  // const ManagementLens = await ethers.deployContract("ManagementLens", {gasPrice: 30000000000});
   // await ManagementLens.waitForDeployment();
 
-  // const Reputation = await ethers.deployContract("Reputation", [BeeSmartProxy.target]);
+  const ManagementLens = {target: "0xB01906Ae93B045CbFC91482A6D6E4F834811a8d7"};
+
+  console.log(`ManagementLens: ${ManagementLens.target}`)
+
+  // const Reputation = await ethers.deployContract("Reputation", [BeeSmartProxy.target], {gasPrice: 30000000000});
   // await Reputation.waitForDeployment();
 
-  const Reputation = {target: "0xd43c151fb76b9c648d1aafe4d58e47018940e065"}
+  const Reputation = {target: "0x7df8865dAABB77a18BeDC1916d9E6F298f99928c"}
 
-  // console.log(`Reputation: ${Reputation.target}`);
+  console.log(`Reputation: ${Reputation.target}`)
+
+  // const Reputation = {target: "0xd43c151fb76b9c648d1aafe4d58e47018940e065"}
 
   // to initialize system
   const smart = await ethers.getContractAt("BeeSmart", BeeSmartProxy.target);
-  let tx = await smart.setReputation(Reputation.target);
+  let tx = await smart.setReputation(Reputation.target, {gasPrice: 30000000000});
   await tx.wait();
 
   console.log(`hash: ${tx.hash}`)
 
-  tx = await smart.setAgentManager(AgentManagerProxy.target);
+  tx = await smart.setAgentManager(AgentManagerProxy.target, {gasPrice: 30000000000});
   await tx.wait();
   console.log(`hash: ${tx.hash}`)
-  // console.log(`
-  //   {
-  //     "BeeSmartProxy":      "${BeeSmartProxy.target}",
-  //     "AgentManagerProxy":  "${AgentManagerProxy.target}",
-  //     "Reputation":         "${Reputation.target}",
-  //     "BeeSmart":           "${BeeSmart.target}",
-  //     "BeeSmartLens":       "${BeeSmartLens.target}",
-  //     "ManagementLens":     "${ManagementLens.target}",
-  //     "TestUSDT":           "${USDT.target}",
-  //     "TestUSDC":           "${USDC.target}"
-  //   }
-  // `)
+  console.log(`
+    {
+      "BeeSmartProxy":      "${BeeSmartProxy.target}",
+      "AgentManagerProxy":  "${AgentManagerProxy.target}",
+      "Reputation":         "${Reputation.target}",
+      "BeeSmart":           "${BeeSmart.target}",
+      "ManagementLens":     "${ManagementLens.target}",
+      "TestUSDT":           "${USDT.target}",
+      "TestUSDC":           "${USDC.target}"
+    }
+  `)
 
 }
 

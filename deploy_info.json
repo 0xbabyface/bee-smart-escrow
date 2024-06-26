@@ -11,12 +11,11 @@
       },
 
     "amoy": {
-      "BeeSmartProxy":      "0x856b6bf21f3cde40117b7e9d4bc5c82a7a924228",
-      "AgentManagerProxy":  "0xEDcAd7cCc2c3E8CadF02E7e49cc6e2a847499B27",
+      "BeeSmartProxy":      "0xe5390EB434544F55d0dFeEf1286B3FFA691e517F",
+      "AgentManagerProxy":  "0x8c07F390Ae85A757641365246BC5Df2596eEa712",
       "Reputation":         "0xd43c151fb76b9c648d1aafe4d58e47018940e065",
-      "BeeSmart":           "0x1263cfc34a779be204ec467997c7db66cf90008d",
       "BeeSmartLens":       "0xcda7f47eb7947af6a166a71b93e2a58040e32244",
-      "ManagementLens":     "0x487BC047F81258f7AC36AAAEb529b8FcdCe4D248",
+      "ManagementLens":     "0xB01906Ae93B045CbFC91482A6D6E4F834811a8d7",
       "TestUSDT":           "0x66803b16cfcd7af1b49f9d584c654cdcfc72bf51",
       "TestUSDC":           "0x94a1a696e7fb537b55ea2edc135c0744637b79e7"
     }
