@@ -3,7 +3,7 @@
 pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IBeeSmart.sol";
-import "hardhat/console.sol";
+
 contract ManagementLens {
 
     uint16 constant RoleCommon    = 0x00;
@@ -12,6 +12,11 @@ contract ManagementLens {
     uint16 constant RoleOperator  = 0x04;
     uint16 constant RoleTopAgent  = 0x08;
     uint16 constant RoleAgent     = 0x10;
+
+    struct OperatorWallet {
+        uint96 operatorId;
+        address wallet;
+    }
 
     struct SysSettings {
         address   reputation;               // 声誉合约
@@ -29,6 +34,8 @@ contract ManagementLens {
         uint256   chargesBaredSellerRatio;  // 卖家交易手续费 0.5%
         uint256   reputationRatio;          // 声誉值/交易量兑换比例  tradeAmount * reputationRatio = Points
         uint256   disputeWinnerFeeRatio;    // 争议处理费比例:  交易额 * 比例
+
+        OperatorWallet[] operatorWallets;
     }
 
     struct RewardInfo {
@@ -127,6 +134,8 @@ contract ManagementLens {
     }
 
     function getSysSettings(IBeeSmart smart) external view returns(SysSettings memory) {
+        uint96 operatorIds = smart.agentMgr().operatorId();
+
         SysSettings memory s = SysSettings({
             reputation:              address(smart.reputation()),
             agentMgr:                address(smart.agentMgr()),
@@ -140,8 +149,16 @@ contract ManagementLens {
             chargesBaredBuyerRatio:  smart.chargesBaredBuyerRatio(),
             chargesBaredSellerRatio: smart.chargesBaredSellerRatio(),
             reputationRatio:         smart.reputationRatio(),
-            disputeWinnerFeeRatio:   smart.disputeWinnerFeeRatio()
+            disputeWinnerFeeRatio:   smart.disputeWinnerFeeRatio(),
+            operatorWallets:         new OperatorWallet[](operatorIds - 800)
         });
+
+        for (uint96 i = 800; i < operatorIds; ++i) {
+            s.operatorWallets[i-800] = OperatorWallet({
+                operatorId: (i) * 10**6,
+                wallet: smart.operatorWallets(i)
+            });
+        }
 
         return s;
     }
@@ -151,6 +168,7 @@ contract ManagementLens {
         address    selfWallet;        // 钱包地址
         uint96     parentId;          // 父代理ID
         StarLevel  starLevel;         // 星级
+        bool       canAddSubAgent;    // 是否允许增加下级
         bool       removed;           // 是否已经被删除
         bool       isGlobalAgent;     // 是否全球代理
         address[]  subAgents;         // 子代理账号
@@ -165,6 +183,7 @@ contract ManagementLens {
             selfWallet:     agent.selfWallet,
             parentId:       agent.parentId,
             starLevel:      agent.starLevel,
+            canAddSubAgent: agent.canAddSubAgent,
             removed:        agent.removed,
             isGlobalAgent:  smart.agentMgr().isGlobalAgent(wallet),
             subAgents:      smart.agentMgr().getSubAgents(wallet),

@@ -11,6 +11,7 @@ struct Agent {
     address                  selfWallet;        // wallet address
     uint96                   parentId;      // parent id
     StarLevel                starLevel;     // star level
+    bool                     canAddSubAgent;// if this agent can has its own sub agent
     bool                     removed;
     string                   nickName;
 }
@@ -43,7 +44,7 @@ contract AgentManager is Initializable {
 
     IBeeSmart     smart;
 
-    event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel);
+    event AgentAdded(address indexed parent, address indexed self, StarLevel starLevel, bool canAddSubAgent);
     event AgentStarLevelChanged(address indexed agent, StarLevel oldStarLevel, StarLevel newStarLevel);
     event AgentAbilityChanged(address indexed agent, bool oldAbility, bool newAbility);
     event AgentRemoved(address indexed operator, address indexed agent);
@@ -127,6 +128,7 @@ contract AgentManager is Initializable {
         newAgent.selfWallet     = agent;
         newAgent.parentId       = RootId;
         newAgent.starLevel      = starLevel;
+        newAgent.canAddSubAgent = true;
         newAgent.removed        = false;
         newAgent.nickName       = nickName;
 
@@ -141,7 +143,7 @@ contract AgentManager is Initializable {
         smart.onNewAgent(agent, newAgent.selfId);
         smart.onNewTopAgent(newAgent.selfId, operatorWallet);
 
-        emit AgentAdded(RootWallet, agent, starLevel);
+        emit AgentAdded(RootWallet, agent, starLevel, true);
     }
 
     // CAUTION: if too many levels of agents, DDOS happens
@@ -163,6 +165,7 @@ contract AgentManager is Initializable {
         address fatherAgent,
         address sonAgent,
         StarLevel starLevel,
+        bool canAddSubAgent,
         string memory nickName
     )
         external
@@ -173,13 +176,23 @@ contract AgentManager is Initializable {
         // should judge next conditions
         // 1. msg.sender is a agent who can add sub agent.
         address operatorWallet = smart.getOperatorWallet(fatherAgent);
-        require(operatorWallet == msg.sender, "only operator wallet");
-
-        // 3. son agent is valid.
-        require(
-            agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
-            "sub agent has been bound"
-        );
+        if (operatorWallet != msg.sender) {
+            // 1. msg.sender is a agent who can add sub agent.
+            require(
+                !agents[msg.sender].removed && agents[msg.sender].canAddSubAgent,
+                "operator address is invalid"
+            );
+            // 2. fatherAgent is a sub agent of msg.sender, no matter fatherAgent can add sub agent or not.
+            require(
+                msg.sender == fatherAgent || isSubAgent(msg.sender, fatherAgent),
+                "only agent's father"
+            );
+            // 3. son agent is valid.
+            require(
+                agents[sonAgent].selfId == 0 || agents[sonAgent].removed,
+                "sub agent has been bound"
+            );
+        }
 
         require(sonAgent != address(0) && sonAgent != RootWallet, "son agent is invalid");
 
@@ -192,6 +205,7 @@ contract AgentManager is Initializable {
         newAgent.selfWallet     = sonAgent;
         newAgent.parentId       = upAgent.selfId;
         newAgent.starLevel      = starLevel;
+        newAgent.canAddSubAgent = canAddSubAgent;
         newAgent.removed        = false;
         newAgent.nickName       = nickName;
 
@@ -204,9 +218,34 @@ contract AgentManager is Initializable {
 
         smart.onNewAgent(sonAgent, newAgent.selfId);
 
-        emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel);
+        emit AgentAdded(upAgent.selfWallet, sonAgent, starLevel, canAddSubAgent);
 
         return newAgent.selfId;
+    }
+
+    // to set agent ability to add sub agent
+    function setAgentAbility(
+       address agent,
+       bool newAbility
+    )
+        external
+        onlyValidAgent(agent)
+    {
+        address operatorWallet = smart.getOperatorWallet(agent);
+
+        require(
+            isSubAgent(msg.sender, agent) ||
+            operatorWallet == msg.sender,
+            "only operator wallet or agent's father"
+        );
+
+        Agent storage subAgent = agents[agent];
+        bool oldAbility = subAgent.canAddSubAgent;
+        require(oldAbility != newAbility, "star level not changed");
+
+        subAgent.canAddSubAgent = newAbility;
+
+        emit AgentAbilityChanged(agent, oldAbility, newAbility);
     }
     /**
     * comman agent can only remove its own sub agent
@@ -323,11 +362,9 @@ contract AgentManager is Initializable {
     * to add a wallet as global agent
      */
     function addGlobalAgent(address wallet) external {
-        require(
-            agents[msg.sender].parentId == RootId ||
-            hasAdminRole(msg.sender),
-            "only top agent or owner"
-        );
+        address operatorWallet = smart.getOperatorWallet(wallet);
+        require(operatorWallet == msg.sender, "only operator wallet");
+
         uint256 agentId = agents[wallet].selfId;
         require(agentId != 0, "agent not exist");
         require(!agents[wallet].removed, "wallet removed");
@@ -337,11 +374,9 @@ contract AgentManager is Initializable {
     }
 
     function removeGlobalAgent(address wallet) external {
-        require(
-            agents[msg.sender].parentId == RootId ||
-            hasAdminRole(msg.sender),
-            "only top agent or owner"
-        );
+        address operatorWallet = smart.getOperatorWallet(wallet);
+        require(operatorWallet == msg.sender, "only operator wallet");
+
         uint256 agentId = agents[wallet].selfId;
         require(agentId != 0, "agent not exist");
         require(globalAgentsId.contains(agentId), "not global agent");
