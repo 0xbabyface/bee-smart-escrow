@@ -87,7 +87,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     function setOperatorWallet(uint96 agentId, address w) external onlyRole(AdminRole) {
-        uint96 key = agentId / 1e6;
+        uint96 key = agentId / 1e4;
         require(w != address(0), "wallet is null");
         require(w != operatorWallets[key], "same wallet");
 
@@ -229,7 +229,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             operatorWallets2Id[operatorWallet] == 0,
             "operaotr wallet have been used"
         );
-        uint96 operatorId = agentId / 1e6;
+        uint96 operatorId = agentId / 1e4;
 
         operatorWallets[operatorId] = operatorWallet;
         operatorWallets2Id[operatorWallet] = operatorId;
@@ -483,7 +483,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
     }
 
     function getOperatorWallet(address wallet) public view returns(address) {
-        uint96 operatorId = uint96(boundAgents[wallet]) / 1e6;
+        uint96 operatorId = uint96(boundAgents[wallet]) / 1e4;
         return operatorWallets[operatorId];
     }
 

@@ -150,12 +150,12 @@ contract ManagementLens {
             chargesBaredSellerRatio: smart.chargesBaredSellerRatio(),
             reputationRatio:         smart.reputationRatio(),
             disputeWinnerFeeRatio:   smart.disputeWinnerFeeRatio(),
-            operatorWallets:         new OperatorWallet[](operatorIds - 800)
+            operatorWallets:         new OperatorWallet[](operatorIds - 80)
         });
 
-        for (uint96 i = 800; i < operatorIds; ++i) {
-            s.operatorWallets[i-800] = OperatorWallet({
-                operatorId: (i) * 10**6,
+        for (uint96 i = 80; i < operatorIds; ++i) {
+            s.operatorWallets[i-80] = OperatorWallet({
+                operatorId: (i) * 10**4,
                 wallet: smart.operatorWallets(i)
             });
         }
@@ -204,7 +204,7 @@ contract ManagementLens {
         uint256 len = topAgents.length;
         for (uint i; i < len; ++i) {
             Agent memory  agt = smart.agentMgr().getAgentByWallet(topAgents[i]);
-            uint96 operatorId = agt.selfId / 1E6;
+            uint96 operatorId = agt.selfId / 1E4;
             address o = smart.operatorWallets(operatorId);
             if (o == operatorWallet) {
                 a = this.getAgentInfo(smart, agt.selfWallet);

@@ -16,7 +16,7 @@ describe("AgentManager", async function () {
   }
 
   function agentIdN(nth: bigint) {
-    const prefix = BigInt('800000000');
+    const prefix = BigInt('800000');
     return prefix + nth;
   }
 

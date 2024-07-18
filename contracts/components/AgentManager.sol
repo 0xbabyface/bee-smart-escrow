@@ -27,7 +27,7 @@ contract AgentManager is Initializable {
     using EnumerableSet for EnumerableSet.UintSet;
     uint96  public constant RootId = 100000000;
     address public constant RootWallet   = address(0x000000000000000000000000000000000000dEaD);
-    uint96 constant E6 = 10 ** 6;
+    uint96 constant E4 = 10 ** 4;
     // wallet address => Agent
     mapping(address => Agent) agents;
     // wallet address => wallets of sub agents
@@ -85,7 +85,7 @@ contract AgentManager is Initializable {
 
     function nextId(uint96 key) internal returns(uint96) {
         ++totalAgents;
-        return  key * E6 + totalAgents;
+        return  key * E4 + totalAgents;
     }
 
     constructor() {
@@ -94,7 +94,7 @@ contract AgentManager is Initializable {
 
     function initialize(IBeeSmart _smart) external initializer {
         smart = _smart;
-        operatorId = 800;
+        operatorId = 80;
 
         Agent storage rootAgent = agents[RootWallet];
         rootAgent.selfId     = RootId;
@@ -211,7 +211,7 @@ contract AgentManager is Initializable {
 
         // if this `agent` has been removed some time, its `selfId` should be kept
         if (newAgent.selfId == 0) {
-            newAgent.selfId = nextId(upAgent.selfId / E6);
+            newAgent.selfId = nextId(upAgent.selfId / E4);
         }
 
         agentId2Wallet[newAgent.selfId] = sonAgent;
