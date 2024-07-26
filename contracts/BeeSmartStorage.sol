@@ -66,4 +66,6 @@ contract BeeSmartStorage {
     mapping(uint96 => Order.Rebates[]) agentRebates;
 
     mapping(address => uint96) public operatorWallets2Id;
+
+    uint64        public disputeStatusDurationSec; // 120 minutes waiting for dispute status
 }

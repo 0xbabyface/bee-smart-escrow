@@ -63,6 +63,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
         }
 
         orderStatusDurationSec  = 30 * 60;   // 30 minutes waiting for order status
+        disputeStatusDurationSec  = 120 * 60;   // 120 minutes waiting for order status
         communityFeeRatio       = 0.2E18;    // fee ratio: 20%
         operatorFeeRatio        = 0.1E18;    // top agent ratio 10%
         globalShareFeeRatio     = 0.1E18;    // global share fee ratio
@@ -195,6 +196,10 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
 
     function setOrderStatusDurationSec(uint64 sec) external onlyRole(AdminRole) {
         orderStatusDurationSec = sec;
+    }
+
+    function setDisputeStatusDurationSec(uint64 sec) external onlyRole(AdminRole) {
+        disputeStatusDurationSec = sec;
     }
 
     function alignAmount18(address payToken, uint256 sellAmount) internal view returns(uint256) {
@@ -343,7 +348,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // order is in normal status, and seller raise a dispute
             order.toStatus(Order.Status.SELLERDISPUTE);
         } else if (order.currStatus == Order.Status.SELLERDISPUTE) {
-            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+            require(order.updatedAt + disputeStatusDurationSec <= block.timestamp, "status in waiting time");
             // two dispute by seller, send token back to seller
             // this order is handled like being cancelled
             // no reputation nor CANDY reward is granted
@@ -384,7 +389,7 @@ contract BeeSmart is AccessControl, BeeSmartStorage {
             // order is in normal status, and buyer raise a dispute
             order.toStatus(Order.Status.BUYERDISPUTE);
         } else if (order.currStatus == Order.Status.BUYERDISPUTE) {
-            require(order.updatedAt + orderStatusDurationSec <= block.timestamp, "status in waiting time");
+            require(order.updatedAt + disputeStatusDurationSec <= block.timestamp, "status in waiting time");
             // two dispute by buyer, send token to buyer
             // charge community fee from this order,
             // but no reputation nor CANDY granted

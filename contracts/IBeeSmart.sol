@@ -23,6 +23,7 @@ interface IBeeSmart {
     function getOperatorWallet(address wallet) external view returns(address);
     function globalShareWallet() external view returns(address);
     function orderStatusDurationSec() external view returns(uint64);
+    function disputeStatusDurationSec() external view returns(uint64);
     function communityFeeRatio() external view returns(uint256);
     function operatorFeeRatio() external view returns(uint256);
     function globalShareFeeRatio() external view returns(uint256);

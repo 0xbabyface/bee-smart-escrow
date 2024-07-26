@@ -26,6 +26,7 @@ contract ManagementLens {
         address   globalShareWallet;        // 全球分享合约
 
         uint64    orderStatusDurationSec;   // 交易状态进行时间(秒数), 默认 30 * 60 s
+        uint64    disputeStatusDurationSec; // 争议处理时间(秒数), 默认 120 * 60 s
         uint256   communityFeeRatio;        // 社区分成比例: 20%
         uint256   operatorFeeRatio;         // 运营分成比例 10%
         uint256   globalShareFeeRatio;      // 全球分享比例
@@ -142,6 +143,7 @@ contract ManagementLens {
             communityWallet:         smart.communityWallet(),
             globalShareWallet:       smart.globalShareWallet(),
             orderStatusDurationSec:  smart.orderStatusDurationSec(),
+            disputeStatusDurationSec: smart.disputeStatusDurationSec(),
             communityFeeRatio:       smart.communityFeeRatio(),
             operatorFeeRatio:        smart.operatorFeeRatio(),
             globalShareFeeRatio:     smart.globalShareFeeRatio(),
