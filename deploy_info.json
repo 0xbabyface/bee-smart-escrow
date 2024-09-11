@@ -11,12 +11,12 @@
       },
 
     "amoy": {
-      "BeeSmartProxy":      "0xe5390EB434544F55d0dFeEf1286B3FFA691e517F",
-      "AgentManagerProxy":  "0x8c07F390Ae85A757641365246BC5Df2596eEa712",
-      "Reputation":         "0xd43c151fb76b9c648d1aafe4d58e47018940e065",
-      "BeeSmartLens":       "0xcda7f47eb7947af6a166a71b93e2a58040e32244",
-      "ManagementLens":     "0xB01906Ae93B045CbFC91482A6D6E4F834811a8d7",
-      "TestUSDT":           "0x66803b16cfcd7af1b49f9d584c654cdcfc72bf51",
-      "TestUSDC":           "0x94a1a696e7fb537b55ea2edc135c0744637b79e7"
+      "BeeSmartProxy":      "0xB08b0F7092CD04023e272AAC2D6F4DF35fb19aD8",
+      "AgentManagerProxy":  "0x7d49134F61868e2d29886CFFA3960cFB4fEdD068",
+      "Reputation":         "0xc3C0f93A391B37Ab74Ae8BD1a9F49Afddb22B096",
+      "BeeSmart":           "0xa55abaF297bE6a52388CA74cd276f9002a8dB773",
+      "ManagementLens":     "0xc40B63a0D368151b8dE3c8e5f8A005Bf04817fD7",
+      "TestUSDT":           "0x66803B16Cfcd7AF1B49F9D584C654cdcfC72Bf51",
+      "TestUSDC":           "0x94a1A696E7Fb537B55ea2EDC135c0744637b79e7"
     }
 }

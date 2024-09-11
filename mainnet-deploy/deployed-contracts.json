@@ -1,34 +1,30 @@
 {
     "polygon": {
-        "BeeSmartProxy": "0xca1af3d66e0b35f00e3bef5170678db95678a30f",
-        "AgentManagerProxy": "0x592faa5167665b8c407976ebe4a2be69634e6a7f",
-        "Reputation": "0xbe45d5e64aaf27eed8bc47c64a352027bdf5bedc",
-        "BeeSmart": "0x9c6993d02f1abb9dab2988e6857c23fa65d805d1",
-        "BeeSmartLens": "0x2a25c082933a2317f34847350d24a911787ad057",
-        "ManagementLens": "0xc8a12f8da8a073c90961d8d3b27477c0ac841de7"
+        "BeeSmart": "0xB485C7511bD61B7eb99839FCBeA6fF7B71BD12C4",
+        "AgentManager": "0x38e29B7438D3936326fADecac55d0e0446B21801",
+        "Reputation": "0xDA8DC07Fe30F8CC69f65B19adEaF4F3A114C51C1",
+        "BeeSmartLens": "0x39Fc55169745ec653Ab547504f158EDe91aB00d7",
+        "ManagementLens": "0x1791817d04459Fdf6240CA346E408ce1398CFa3B"
     },
     "fantom": {
-        "BeeSmartProxy": "0xcA1aF3D66e0b35f00E3bEF5170678DB95678a30f",
-        "AgentManagerProxy": "0xF975c48E85Dde3F57D3e0a113940001F450bc762",
-        "Reputation": "0xc8A12f8DA8a073C90961d8d3b27477c0aC841DE7",
-        "BeeSmart": "0x9c6993d02f1ABb9DAb2988E6857C23fA65d805D1",
-        "BeeSmartLens": "0x592FAA5167665b8C407976eBe4A2Be69634E6a7f",
-        "ManagementLens": "0x2a25C082933A2317F34847350D24A911787AD057"
+        "BeeSmart":      "0x411a0958192A207561716F168F28Cd4cD8563b04",
+        "AgentManager":  "0x8082a3D81B350e719a45f7A2C26D8Aa40Afd928C",
+        "Reputation":         "0xC26bc6fA8EDA069111D6E2BAF0c94b7F5d2DD326",
+        "BeeSmartLens":       "0xfD088F9A16E5D973052AC4C31382b32cdA793Fe7",
+        "ManagementLens":     "0x3BA4ac8Ee90B33511eEb480CC394C2D21cfb32c4"
     },
     "bsc": {
-        "BeeSmartProxy": "0xcA1aF3D66e0b35f00E3bEF5170678DB95678a30f",
-        "AgentManagerProxy": "0xF975c48E85Dde3F57D3e0a113940001F450bc762",
-        "Reputation": "0xc8A12f8DA8a073C90961d8d3b27477c0aC841DE7",
-        "BeeSmart": "0x9c6993d02f1ABb9DAb2988E6857C23fA65d805D1",
-        "BeeSmartLens": "0x592FAA5167665b8C407976eBe4A2Be69634E6a7f",
-        "ManagementLens": "0x2a25C082933A2317F34847350D24A911787AD057"
+       "BeeSmart":      "0xB22035973B75c5dFE4E6BE92109F9c080113F9de",
+      "AgentManager":  "0x86E8aD549AC53bef596550AEc77a3BD98D7A4abf",
+      "Reputation":         "0x8DF14d2405293a7ed6312E23779b4eC7b57A4800",
+      "BeeSmartLens":       "0x8021B51333Cb1C387ae6c4a7f1a43779DE602ec1",
+      "ManagementLens":     "0x1c2D7E574F25E5D31E802763127016C5aD66260C"
     },
-    "heco": {
-        "BeeSmartProxy": "0xcA1aF3D66e0b35f00E3bEF5170678DB95678a30f",
-        "AgentManagerProxy": "0xF975c48E85Dde3F57D3e0a113940001F450bc762",
-        "Reputation": "0xc8A12f8DA8a073C90961d8d3b27477c0aC841DE7",
-        "BeeSmart": "0x9c6993d02f1ABb9DAb2988E6857C23fA65d805D1",
-        "BeeSmartLens": "0x592FAA5167665b8C407976eBe4A2Be69634E6a7f",
-        "ManagementLens": "0x2a25C082933A2317F34847350D24A911787AD057"
+    "base": {
+      "BeeSmart":      "0xf28Ff8D51535362B9ECfaaa67c26F88207c165Ff",
+      "AgentManager":  "0x674757638dFAA115afbC2CE9719C3acDdAaB5F62",
+      "Reputation":         "0x0124EF25A8D35b09e4BE8E7F54E2eE2484C3aF6C",
+      "BeeSmartLens":       "0x73d8e3735E9332F0418acA7248da8C4E81cC00c6",
+      "ManagementLens":     "0x73CeDa015719d895dcaC155D5b53Ee7d5336B2C3"
     }
 }

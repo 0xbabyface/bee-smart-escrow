@@ -22,6 +22,7 @@ async function main() {
   console.log(`globalPending:             ${ethers.formatEther(await smart.pendingRewards(globalWallet, contracts.TestUSDT))}`);
 
   console.log(`orderStatusDurationSec:    ${await smart.orderStatusDurationSec()}`);
+  console.log(`disputeStatusDurationSec:  ${await smart.disputeStatusDurationSec()}`);
   console.log(`reputationRatio:           ${ethers.formatEther(await smart.reputationRatio())}`)
 
   console.log(`hasRole: ${await smart.hasRole(await smart.AdminRole(), "0x81bD01D0A9E8e8E40FAf22B779Bb21BaFbf8f7AC")}`)

@@ -53,12 +53,16 @@ const config: HardhatUserConfig = {
       accounts,
     },
     fantom: {
-      url: "https://rpc.fantom.gateway.fm",
+      url: "https://fantom-rpc.publicnode.com",
       accounts,
     },
     amoy: {
       url: "https://rpc-amoy.polygon.technology/",
       accounts,
+    },
+    base: {
+      url: "https://mainnet.base.org",
+      accounts
     },
     heco: {
       url: "https://http-mainnet-node.huobichain.com",

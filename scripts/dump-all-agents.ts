@@ -27,7 +27,9 @@ async function main() {
   // console.log(`subAgents:       ${agents[7]}`);
 
   const agentManager = await ethers.getContractAt('AgentManager', contracts.AgentManagerProxy);
-  console.log(`id: ${await agentManager.getAgentByWallet('0x8b5fBcd217d2913f33A2Ef126EaA11dEcD6C9Fb3')}`)
+  console.log(`isAgentId: ${await agentManager.isAgentId(800001)}`);
+  console.log(`isAgentId: ${await agentManager.isAgentId(810002)}`);
+  // console.log(`id: ${await agentManager.getAgentByWallet('0x8b5fBcd217d2913f33A2Ef126EaA11dEcD6C9Fb3')}`)
   // const totalAgentsCount = await agentManager.totalAgents();
   // console.log(`total: ${totalAgentsCount}`)
 

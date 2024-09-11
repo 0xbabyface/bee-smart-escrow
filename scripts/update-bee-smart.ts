@@ -10,6 +10,10 @@ async function main() {
   await tx.wait();
 
   console.log(`update bee smart to ${BeeSmart.target} : ${tx.hash}`);
+
+  let ins = await ethers.getContractAt("BeeSmart", contracts.BeeSmartProxy);
+  tx = await ins.setDisputeStatusDurationSec(120 * 60);  // 2 hours
+  await tx.wait();
 }
 
 main();
